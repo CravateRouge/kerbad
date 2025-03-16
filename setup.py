@@ -12,7 +12,7 @@ else:
 
 setup(
 	# Application name:
-	name="minikerberos",
+	name="minikerberos-bAD",
 
 	# Version number (initial):
 	version=verstr,
