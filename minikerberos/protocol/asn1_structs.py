@@ -853,8 +853,11 @@ class PA_FOR_USER_ENC(core.Sequence):
 	
 class S4UUserIDOptions(core.BitString):
 	_map = {
-		0x40000000 : 'check-logon-hour', #This option causes the KDC to check logon hour restrictions for the user.
-		0x20000000 : 'signed-with-kun-27', #In a request, asks the KDC to sign the reply with key usage number 27. In a reply, indicates that it was signed with key usage number 27.
+		0 : 'reserved', #Reserved for future use.
+		1 : 'check-logon-hour', #This option causes the KDC to check logon hour restrictions for the user.
+		2 : 'signed-with-kun-27', #In a request, asks the KDC to sign the reply with key usage number 27. In a reply, indicates that it was signed with key usage number 27.
+		3 : 'nt-auth-policy-not-required', #This option causes the KDC to omit NTAuth store certificate chain checks and is designed for scenarios where the client performs its own chain checks. 
+		4 : 'unconditional-delegation' #Unconditional delegation
 	}
 
 #https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-sfu/cd9d5ca7-ce20-4693-872b-2f5dd41cbff6

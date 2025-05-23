@@ -9,7 +9,7 @@ from minikerberos.common.creds import KerberosCredential
 from minikerberos.common.kirbi import Kirbi
 
 
-async def getS4U2self(kerberos_url, spn, targetuser, kirbifile = None, ccachefile = None):
+async def getS4U2self(kerberos_url, spn, targetuser, kirbifile = None, ccachefile = None, is_dmsa = False):
 	cu = KerberosClientFactory.from_url(kerberos_url)
 	client = cu.get_client()
 	service_spn = KerberosSPN.from_spn(spn)
@@ -19,7 +19,7 @@ async def getS4U2self(kerberos_url, spn, targetuser, kirbifile = None, ccachefil
 		logger.debug('Getting TGT')
 		await client.get_TGT()
 		logger.debug('Getting S4Uself')
-		tgs, encTGSRepPart, key = await client.S4U2self(target_user, service_spn)
+		tgs, encTGSRepPart, key = await client.S4U2self(target_user, service_spn, is_dmsa=is_dmsa)
 	else:
 		logger.debug('Getting TGS via TGT from CCACHE')
 		for kirbi in client.credential.ccache.get_all_tgt_kirbis():
@@ -27,7 +27,7 @@ async def getS4U2self(kerberos_url, spn, targetuser, kirbifile = None, ccachefil
 				logger.info('Trying to get SPN with %s' % kirbi.get_username())
 				ccred_test = KerberosCredential.from_kirbi(kirbi.to_hex(), encoding='hex')
 				client = cu.get_client_newcred(ccred_test)
-				tgs, encTGSRepPart, key = await client.S4U2self(target_user, service_spn)
+				tgs, encTGSRepPart, key = await client.S4U2self(target_user, service_spn, is_dmsa=is_dmsa)
 				logger.info('Sucsess!')
 				break
 			except Exception as e:
@@ -51,6 +51,7 @@ def main():
 	import argparse
 	
 	parser = argparse.ArgumentParser(description='Gets an S4U2self ticket impersonating given user', formatter_class=argparse.RawDescriptionHelpFormatter, epilog = kerberos_url_help_epilog)
+	parser.add_argument('--dmsa', help='Account to impersonate is a dMSA', action='store_true')
 	parser.add_argument('--kirbi', help='kirbi file to store the TGS ticket in, otherwise kirbi will be printed to stdout')
 	parser.add_argument('--ccache', help='ccache file to store the TGT ticket in')
 	parser.add_argument('-v', '--verbose', action='count', default=0)
@@ -66,7 +67,7 @@ def main():
 	else:
 		logger.setLevel(1)
 
-	asyncio.run(getS4U2self(args.kerberos_url, args.spn, args.targetuser, args.kirbi, args.ccache))
+	asyncio.run(getS4U2self(args.kerberos_url, args.spn, args.targetuser, args.kirbi, args.ccache, args.dmsa))
 	
 	
 if __name__ == '__main__':

@@ -100,7 +100,7 @@ class AIOKerberosClient:
 		kdc_req_body['till'] = (now + datetime.timedelta(days=1)).replace(microsecond=0)
 		kdc_req_body['rtime'] = (now + datetime.timedelta(days=1)).replace(microsecond=0)
 		kdc_req_body['nonce'] = secrets.randbits(31)
-		kdc_req_body['etype'] = [supported_encryption_method.value] #selecting according to server's preferences
+		kdc_req_body['etype'] = self.credential.get_supported_enctypes() #gives all client supported etypes in case server does not support the selected one
 		
 		if kdc_req_body_extra is not None:
 			for key in kdc_req_body_extra:
@@ -131,7 +131,7 @@ class AIOKerberosClient:
 		kdc_req_body_data['till']  = (now + datetime.timedelta(days=1)).replace(microsecond=0)
 		kdc_req_body_data['rtime'] = (now + datetime.timedelta(days=1)).replace(microsecond=0)
 		kdc_req_body_data['nonce'] = secrets.randbits(31)
-		kdc_req_body_data['etype'] = [supported_encryption_method.value] #[18,17] # 23 breaks...
+		kdc_req_body_data['etype'] = self.credential.get_supported_enctypes() #gives all client supported etypes in case server does not support the selected one
 		kdc_req_body = KDC_REQ_BODY(kdc_req_body_data)
 
 
@@ -351,7 +351,8 @@ class AIOKerberosClient:
 				except Exception as e:
 					logger.error('Failed to load decrypted part of the reply!')
 					raise e
-			
+			self.kerberos_cipher = _enctype_table[self.kerberos_TGT_encpart['key']['keytype']]
+			self.kerberos_cipher_type = self.kerberos_TGT_encpart['key']['keytype']
 			self.kerberos_session_key = Key(self.kerberos_cipher.enctype, self.kerberos_TGT_encpart['key']['keyvalue'])
 			self.ccache.add_tgt(self.kerberos_TGT, self.kerberos_TGT_encpart, override_pp = True)
 			logger.debug('Got valid TGT')
@@ -542,7 +543,7 @@ class AIOKerberosClient:
 		return tgs, encTGSRepPart, key, decticket
 	
 	#https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-sfu/6a8dfc0c-2d32-478a-929f-5f9b1b18a169
-	async def S4U2self(self, user_to_impersonate, spn_user = None, kdcopts = ['forwardable','renewable','canonicalize']):
+	async def S4U2self(self, user_to_impersonate, spn_user = None, kdcopts = ['forwardable','renewable','canonicalize'], is_dmsa = False):
 		"""
 		user_to_impersonate : KerberosTarget class
 		"""
@@ -562,7 +563,7 @@ class AIOKerberosClient:
 		authenticator_data['cname'] = self.kerberos_TGT['cname']
 		authenticator_data['cusec'] = now.microsecond
 		authenticator_data['ctime'] = now.replace(microsecond=0)
-		
+
 		authenticator_data_enc = self.kerberos_cipher.encrypt(self.kerberos_session_key, 7, Authenticator(authenticator_data).dump(), None)
 		
 		ap_req = {}
@@ -576,35 +577,66 @@ class AIOKerberosClient:
 		pa_data_auth = {}
 		pa_data_auth['padata-type'] = PaDataType.TGS_REQ.value
 		pa_data_auth['padata-value'] = AP_REQ(ap_req).dump()
-		
-		###### Calculating checksum data
-		
-		S4UByteArray = NAME_TYPE.PRINCIPAL.value.to_bytes(4, 'little', signed = False)
-		S4UByteArray += user_to_impersonate.username.encode()
-		S4UByteArray += user_to_impersonate.domain.encode()
-		S4UByteArray += auth_package_name.encode()
-		logger.debug('[S4U2self] S4UByteArray: %s' % S4UByteArray.hex())
-		logger.debug('[S4U2self] S4UByteArray: %s' % S4UByteArray)
-		
-		chksum_data = _HMACMD5.checksum(self.kerberos_session_key, 17, S4UByteArray)
-		logger.debug('[S4U2self] chksum_data: %s' % chksum_data.hex())
-		
-		
-		chksum = {}
-		chksum['cksumtype'] = int(CKSUMTYPE('HMAC_MD5'))
-		chksum['checksum'] = chksum_data
 
-		
-		###### Filling out PA-FOR-USER data for impersonation
-		pa_for_user_enc = {}
-		pa_for_user_enc['userName'] = PrincipalName({'name-type': NAME_TYPE.PRINCIPAL.value, 'name-string': user_to_impersonate.get_principalname()})
-		pa_for_user_enc['userRealm'] = user_to_impersonate.domain
-		pa_for_user_enc['cksum'] = Checksum(chksum)
-		pa_for_user_enc['auth-package'] = auth_package_name
-		
-		pa_for_user = {}
-		pa_for_user['padata-type'] = int(PADATA_TYPE('PA-FOR-USER'))
-		pa_for_user['padata-value'] = PA_FOR_USER_ENC(pa_for_user_enc).dump()
+		nonce = secrets.randbits(31)
+
+		if is_dmsa:
+			from minikerberos.protocol.asn1_structs import S4UUserID, PA_S4U_X509_USER, S4UUserIDOptions
+			from minikerberos.protocol.encryption import make_checksum, Cksumtype
+			# [MS-SFU] 2.2.2 PA_S4U_X509_USER
+			user_id = {}
+			user_id['nonce'] = nonce
+			user_id['cname'] = PrincipalName({'name-type': NAME_TYPE.PRINCIPAL.value, 'name-string': user_to_impersonate.get_principalname()})
+			user_id['crealm'] = user_to_impersonate.domain
+			# Ensure the options set contains only valid and supported options
+			user_id['options'] = S4UUserIDOptions(set(['signed-with-kun-27','unconditional-delegation']))
+			for_x509_user = {}
+			for_x509_user['user-id'] = S4UUserID(user_id)
+			enctype_to_checksum = {
+				Enctype.DES_MD5: Cksumtype.MD5_DES,
+				Enctype.DES3: Cksumtype.SHA1_DES3,
+				Enctype.AES128: Cksumtype.SHA1_AES128,
+				Enctype.AES256: Cksumtype.SHA1_AES256,
+				Enctype.RC4: Cksumtype.MD4,
+				Enctype.RC4_MD4: Cksumtype.HMAC_MD5,
+			}
+			cksumtype = enctype_to_checksum[self.kerberos_cipher_type]
+			chksum_data = make_checksum(cksumtype, self.kerberos_session_key, 26, for_x509_user['user-id'].dump())
+			chksum = {}
+			chksum['cksumtype'] = cksumtype
+			chksum['checksum'] = chksum_data
+			for_x509_user['checksum'] = Checksum(chksum)
+			pa_for_user = {}
+			pa_for_user['padata-type'] = int(PADATA_TYPE('FOR-X509-USER'))
+			pa_for_user['padata-value'] = PA_S4U_X509_USER(for_x509_user).dump()
+		else:
+			###### Calculating checksum data
+			
+			S4UByteArray = NAME_TYPE.PRINCIPAL.value.to_bytes(4, 'little', signed = False)
+			S4UByteArray += user_to_impersonate.username.encode()
+			S4UByteArray += user_to_impersonate.domain.encode()
+			S4UByteArray += auth_package_name.encode()
+			logger.debug('[S4U2self] S4UByteArray: %s' % S4UByteArray.hex())
+			logger.debug('[S4U2self] S4UByteArray: %s' % S4UByteArray)
+			
+			chksum_data = _HMACMD5.checksum(self.kerberos_session_key, 17, S4UByteArray)
+			logger.debug('[S4U2self] chksum_data: %s' % chksum_data.hex())
+			
+			
+			chksum = {}
+			chksum['cksumtype'] = int(CKSUMTYPE('HMAC_MD5'))
+			chksum['checksum'] = chksum_data
+
+			###### Filling out PA-FOR-USER data for impersonation
+			pa_for_user_enc = {}
+			pa_for_user_enc['userName'] = PrincipalName({'name-type': NAME_TYPE.PRINCIPAL.value, 'name-string': user_to_impersonate.get_principalname()})
+			pa_for_user_enc['userRealm'] = user_to_impersonate.domain
+			pa_for_user_enc['cksum'] = Checksum(chksum)
+			pa_for_user_enc['auth-package'] = auth_package_name
+			
+			pa_for_user = {}
+			pa_for_user['padata-type'] = int(PADATA_TYPE('PA-FOR-USER'))
+			pa_for_user['padata-value'] = PA_FOR_USER_ENC(pa_for_user_enc).dump()
 	
 		###### Constructing body
 		if spn_user is not None:
@@ -623,7 +655,7 @@ class AIOKerberosClient:
 		krb_tgs_body['sname'] = PrincipalName({'name-type': NAME_TYPE.UNKNOWN.value, 'name-string': spn_user})
 		krb_tgs_body['realm'] = self.credential.domain.upper()
 		krb_tgs_body['till'] = (now + datetime.timedelta(days=1)).replace(microsecond=0)
-		krb_tgs_body['nonce'] = secrets.randbits(31)
+		krb_tgs_body['nonce'] = nonce
 		krb_tgs_body['etype'] = [self.kerberos_session_key.enctype] #[supp_enc.value] #selecting according to server's preferences
 		
 		
