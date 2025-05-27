@@ -355,6 +355,8 @@ class EncryptionKey(core.Sequence):
 		('keyvalue', core.OctetString, {'tag_type': TAG, 'tag': 1}), #
 	]
 
+class SequenceOfEncryptionKey(core.SequenceOf):
+	_child_spec = EncryptionKey
 
 #-- encoded Transited field
 
@@ -897,3 +899,11 @@ class GSSAPIToken(core.Asn1Value):
 	tag = 0
 	method = 1
 
+
+class KERB_DMSA_KEY_PACKAGE(core.Sequence):
+	_fields = [
+		('current-keys', SequenceOfEncryptionKey, {'tag_type': TAG, 'tag': 0}),
+		('previous-keys', SequenceOfEncryptionKey, {'tag_type': TAG, 'tag': 1, 'optional': True}), #-- EncryptionType
+		('expiration-interval', KerberosTime, {'tag_type': TAG, 'tag': 2}),
+		('fetch-interval', KerberosTime, {'tag_type': TAG, 'tag': 4}),
+	]

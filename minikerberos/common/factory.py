@@ -8,7 +8,7 @@ from minikerberos.common.constants import KerberosSecretType
 from minikerberos.aioclient import AIOKerberosClient
 from minikerberos.client import KerbrosClient
 
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, unquote
 
 from asysocks.unicomm.common.target import UniProto
 from asysocks.unicomm.common.proxy import UniProxyTarget
@@ -178,7 +178,11 @@ class KerberosClientFactory:
 	def from_url(url_str):
 		res = KerberosClientFactory()
 		url = urlparse(url_str)
-
+		url_dict = url._asdict()
+		for prop, val in url_dict.items():
+			if type(val) is str:
+				url_dict[prop] = unquote(val)
+		url = url._replace(**url_dict)
 		res.dc_ip = url.hostname
 		schemes = url.scheme.upper().split('+')
 		

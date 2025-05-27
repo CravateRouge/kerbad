@@ -1,4 +1,4 @@
-from minikerberos.protocol.asn1_structs import EncTicketPart, AD_IF_RELEVANT
+from minikerberos.protocol.asn1_structs import EncTicketPart, AD_IF_RELEVANT, EncTGSRepPart, KERB_DMSA_KEY_PACKAGE
 from minikerberos.protocol.external.rpcrt import TypeSerialization1
 from minikerberos.protocol.external.pac import PACTYPE, PAC_INFO_BUFFER, \
 	PAC_CREDENTIAL_INFO, PAC_CREDENTIAL_DATA, NTLM_SUPPLEMENTAL_CREDENTIAL
@@ -38,3 +38,11 @@ def get_NT_from_PAC(pkinit_tkey, decticket:EncTicketPart, truncated_keydata=None
 			buff = buff[len(infoBuffer):]
 		
 		return creds
+
+def get_KRBKeys_From_TGSRep(decTGS:EncTGSRepPart):
+	dmsa_pack = {}
+	for padata in decTGS["encrypted-pa-data"]:
+		if padata["padata-type"] == 171:
+			dmsa_pack = KERB_DMSA_KEY_PACKAGE.load(padata["padata-value"]).native
+	return dmsa_pack
+	

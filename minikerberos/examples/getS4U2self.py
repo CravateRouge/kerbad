@@ -7,6 +7,8 @@ from minikerberos.common.constants import KerberosSecretType
 from minikerberos.common.spn import KerberosSPN
 from minikerberos.common.creds import KerberosCredential
 from minikerberos.common.kirbi import Kirbi
+from minikerberos.protocol.external.ticketutil import get_KRBKeys_From_TGSRep
+from minikerberos.protocol.encryption import Enctype
 
 
 async def getS4U2self(kerberos_url, spn, targetuser, kirbifile = None, ccachefile = None, is_dmsa = False):
@@ -43,7 +45,16 @@ async def getS4U2self(kerberos_url, spn, targetuser, kirbifile = None, ccachefil
 	print(str(kirbi))
 	if kirbifile is not None:
 		kirbi.to_file(kirbifile)
-		
+	
+	if is_dmsa:
+		dmsa_pack = get_KRBKeys_From_TGSRep(encTGSRepPart)
+		print('\ndMSA current keys found in TGS:')
+		for current_key in dmsa_pack['current-keys']:
+			print("%s: %s" % (Enctype.get_name(current_key['keytype']), current_key['keyvalue'].hex()))
+		print('\ndMSA previous keys found in TGS (including keys of preceding managed accounts):')
+		for previous_key in dmsa_pack['previous-keys']:
+			print("%s: %s" % (Enctype.get_name(previous_key['keytype']), previous_key['keyvalue'].hex()))
+
 	logging.info('Done!')
 
 

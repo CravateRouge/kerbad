@@ -78,6 +78,13 @@ class Enctype(object):
 	RC4 = 23
 	RC4_MD4 = -128
 
+	@classmethod
+	def get_name(cls, keytype):
+		for name, value in cls.__dict__.items():
+			if value == keytype:
+				return name
+		return f"Unknown({keytype})"
+
 
 class Cksumtype(object):
 	CRC32 = 1

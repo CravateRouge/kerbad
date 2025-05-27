@@ -20,6 +20,10 @@ setup(
 	# Application author details:
 	author="Tamas Jos",
 	author_email="info@skelsec.com",
+    
+	# Maintainer details:
+	maintainer="Baptiste Crépin",
+	maintainer_email="baptiste@cravaterouge.com",
 
 	# Packages
 	packages=find_packages(exclude=["tests*"]),
