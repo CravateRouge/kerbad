@@ -33,7 +33,7 @@ setup(
 
 
 	# Details
-	url="https://github.com/skelsec/minikerberos",
+	url="https://github.com/CravateRouge/minikerberos-bAD",
 
 	zip_safe=True,
 	#
