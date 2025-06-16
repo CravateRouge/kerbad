@@ -306,7 +306,7 @@ class KerbrosClient:
 			if e.errorcode != KerberosErrorCode.KDC_ERR_ETYPE_NOTSUPP:
 				raise e	
 			logger.debug('Failed to get TGT with etype %s' % etype.name)
-			etype = self.select_preferred_encryption_method(e.rep.native)
+			etype = self.select_preferred_encryption_method(e.krb_err_msg)
 			logger.debug('Trying with supported suggested etype %s' % etype.name)
 			preauth_rep = self.do_preauth(etype, with_pac=with_pac)
 		
