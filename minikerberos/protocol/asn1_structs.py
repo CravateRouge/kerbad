@@ -853,7 +853,8 @@ class PA_FOR_USER_ENC(core.Sequence):
 	
 	]
 	
-class S4UUserIDOptions(core.BitString):
+#class S4UUserIDOptions(core.BitString):
+class S4UUserIDOptions(core.IntegerBitString):
 	_map = {
 		0 : 'reserved', #Reserved for future use.
 		1 : 'check-logon-hour', #This option causes the KDC to check logon hour restrictions for the user.
@@ -867,7 +868,6 @@ class S4UUserID(core.Sequence):
 	_fields = [
 		('nonce', core.Integer, {'tag_type': TAG, 'tag': 0}), #-- the nonce in KDC-REQ-BODY
 		('cname', PrincipalName, {'tag_type': TAG, 'tag': 1, 'optional' : True}),
-		#-- Certificate mapping hints
 		('crealm', Realm, {'tag_type': TAG, 'tag': 2}),
 		('subject-certificate', core.OctetString, {'tag_type': TAG, 'tag': 3, 'optional' : True}),
 		('options', S4UUserIDOptions, {'tag_type': TAG, 'tag': 4, 'optional' : True}),
