@@ -313,16 +313,24 @@ class AIOKerberosClient:
 
 		logger.debug('Generating initial TGT with authentication data')
 		preauth_rep = None
-		etype = EncryptionType(int(supported_etypes[0]))
-		try:
-			preauth_rep = await self.do_preauth(etype, with_pac=with_pac)
-		except KerberosError as e:
-			if e.errorcode != KerberosErrorCode.KDC_ERR_ETYPE_NOTSUPP:
-				raise e	
-			logger.debug('Failed to get TGT with etype %s' % etype.name)
-			etype = self.select_preferred_encryption_method(e.krb_err_msg)
-			logger.debug('Trying with supported suggested etype %s' % etype.name)
-			preauth_rep = await self.do_preauth(etype, with_pac=with_pac)
+		# Try every supported encryption type until one works
+		for etype_int in supported_etypes:
+			etype = EncryptionType(etype_int)
+			try:
+				preauth_rep = await self.do_preauth(etype, with_pac=with_pac)
+				break
+			except KerberosError as e:
+				if e.errorcode != KerberosErrorCode.KDC_ERR_ETYPE_NOTSUPP:
+					raise e	
+				logger.debug('Failed to get TGT with etype %s' % etype.name)
+				# If the server suggested encryption methods, we will use them
+				if e.krb_err_msg.get('e-data'):
+					srv_etype = self.select_preferred_encryption_method(e.krb_err_msg)
+					logger.debug('Trying with supported suggested etype %s' % srv_etype.name)
+					preauth_rep = await self.do_preauth(srv_etype, with_pac=with_pac)
+					break
+				if etype_int == supported_etypes[-1]:
+					raise e
 		
 		logger.debug('Got valid TGT response from server')
 		rep = preauth_rep.native
