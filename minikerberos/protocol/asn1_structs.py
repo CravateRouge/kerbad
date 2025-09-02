@@ -853,8 +853,7 @@ class PA_FOR_USER_ENC(core.Sequence):
 	
 	]
 	
-#class S4UUserIDOptions(core.BitString):
-class S4UUserIDOptions(core.IntegerBitString):
+class S4UUserIDOptions(core.BitString):
 	_map = {
 		0 : 'reserved', #Reserved for future use.
 		1 : 'check-logon-hour', #This option causes the KDC to check logon hour restrictions for the user.
