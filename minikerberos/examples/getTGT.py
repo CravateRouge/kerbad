@@ -4,7 +4,6 @@ from minikerberos.common.factory import KerberosClientFactory, kerberos_url_help
 from minikerberos.common.kirbi import Kirbi
 
 LOG = logging.getLogger("minikerberos")
-LOG.propagate = False
 
 async def getTGT(kerberos_url:str, kirbifile:str = None, ccachefile:str = None, nopac:bool = False):
 	cu = KerberosClientFactory.from_url(kerberos_url)
@@ -17,11 +16,11 @@ async def getTGT(kerberos_url:str, kirbifile:str = None, ccachefile:str = None, 
 		print('TGT stored in ccache file %s' % ccachefile)
 	
 	kirbi = Kirbi.from_ticketdata(client.kerberos_TGT, client.kerberos_TGT_encpart)
-	#print(str(kirbi))
+	print(str(kirbi))
 	if kirbifile is not None:
 		kirbi.to_file(kirbifile)
 		
-	LOG.debug('Done!')
+	LOG.info('Done!')
 
 def main():
 	import argparse

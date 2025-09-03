@@ -6,19 +6,21 @@ from minikerberos.common.spn import KerberosSPN
 from minikerberos.aioclient import AIOKerberosClient
 from minikerberos.common.kirbi import Kirbi
 
+LOG = logging.getLogger("minikerberos")
+
 async def getTGS(kerberos_url:str, spn:str, kirbifile:str = None, ccachefile:str = None, cross_domain:bool = False):
 	if isinstance(spn, str):
 		spn = KerberosSPN.from_spn(spn)
 
 	cu = KerberosClientFactory.from_url(kerberos_url)
 	client = cu.get_client()
-	logging.debug('Getting TGT')
+	LOG.debug('Getting TGT')
 	await client.get_TGT()
 	if cross_domain is True:
-		logging.debug('Getting TGS for otherdomain krbtgt')
+		LOG.debug('Getting TGS for other domain krbtgt')
 		_, _, _, new_factory = await client.get_referral_ticket(spn.domain)
 		client = new_factory.get_client()
-	logging.debug('Getting TGS')
+	LOG.debug('Getting TGS')
 	tgs, encpart, key = await client.get_TGS(spn)
 	if ccachefile is not None:
 		client.ccache.to_file(ccachefile)
@@ -29,7 +31,7 @@ async def getTGS(kerberos_url:str, spn:str, kirbifile:str = None, ccachefile:str
 	if kirbifile is not None:
 		kirbi.to_file(kirbifile)
 		
-	logging.info('Done!')
+	LOG.info('Done!')
 
 def main():
 	import argparse
@@ -44,12 +46,8 @@ def main():
 	
 	
 	args = parser.parse_args()
-	if args.verbose == 0:
-		logging.basicConfig(level=logging.INFO)
-	elif args.verbose == 1:
-		logging.basicConfig(level=logging.DEBUG)
-	else:
-		logging.basicConfig(level=1)
+	if args.verbose > 0:
+		LOG.setLevel(logging.DEBUG)
 	
 	asyncio.run(getTGS(args.kerberos_url, args.spn, args.kirbi, args.ccache, args.cross_domain))
 	
