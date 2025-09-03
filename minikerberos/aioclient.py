@@ -74,7 +74,7 @@ class AIOKerberosClient:
 			padatas.append(pa_data_1)
 		
 		logger.debug('Selecting common encryption type: %s' % supported_encryption_method.name)
-		now = datetime.datetime.now(datetime.timezone.utc)
+		now = newnow if newnow else datetime.datetime.now(datetime.timezone.utc)
 		if no_preauth is False:
 			if enctimestamp is None:
 				#creating timestamp asn1
@@ -84,7 +84,6 @@ class AIOKerberosClient:
 				self.kerberos_key = Key(self.kerberos_cipher.enctype, self.credential.get_key_for_enctype(supported_encryption_method, salt = self.server_salt))
 				enc_timestamp = self.kerberos_cipher.encrypt(self.kerberos_key, 1, timestamp, None)
 			else:
-				now = newnow
 				enc_timestamp = enctimestamp
 			
 			pa_data_2 = {}
@@ -200,7 +199,21 @@ class AIOKerberosClient:
 		logger.debug('Sending TGT request to server')
 		rep = await self.ksoc.sendrecv(req.dump())
 		if rep.name == 'KRB_ERROR':
-			raise KerberosError(rep, 'Preauth failed!')
+			e = KerberosError(rep, 'Preauth failed!')
+			# For now I do the clock trick only for asreq, idk if it's useful for pkinit
+			if self.credential.certificate is not None or e.errorcode != KerberosErrorCode.KRB_AP_ERR_SKEW:
+					raise e
+			logger.warning(f"Clock skew too great")
+			logger.warning(f"Server (UTC): {e.krb_err_msg['stime']}")
+			logger.warning(f"Client (UTC): {datetime.datetime.now(datetime.timezone.utc)}")
+
+			logger.debug("Trying to synchronize...")
+			req = self.build_asreq_lts(supported_encryption_method, kdcopts, with_pac=with_pac, newnow=e.krb_err_msg['stime'])
+			rep = await self.ksoc.sendrecv(req.dump())
+			if rep.name == 'KRB_ERROR':
+				raise KerberosError(rep, 'Preauth failed!')
+
+			
 		return rep
 
 	def tgt_from_ccache(self):
