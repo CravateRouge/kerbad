@@ -1,12 +1,13 @@
-import os
 import logging
+import minikerberos
+
+LOG = minikerberos.getLogger()
+
 import asyncio
 from minikerberos.common.factory import KerberosClientFactory, kerberos_url_help_epilog
 from minikerberos.common.spn import KerberosSPN
 from minikerberos.aioclient import AIOKerberosClient
 from minikerberos.common.kirbi import Kirbi
-
-LOG = logging.getLogger("minikerberos")
 
 async def getTGS(kerberos_url:str, spn:str, kirbifile:str = None, ccachefile:str = None, cross_domain:bool = False):
 	if isinstance(spn, str):

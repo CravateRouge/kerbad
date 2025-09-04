@@ -17,6 +17,10 @@
 
 import datetime
 import logging
+import minikerberos
+
+LOG = minikerberos.getLogger()
+
 import asyncio
 import base64
 from minikerberos.common.factory import KerberosClientFactory, kerberos_url_help_epilog
@@ -220,12 +224,8 @@ def main():
 	parser.add_argument('-v', '--verbose', action='count', default=0)
 	
 	args = parser.parse_args()
-	if args.verbose == 0:
-		logging.basicConfig(level=logging.INFO)
-	elif args.verbose == 1:
-		logging.basicConfig(level=logging.DEBUG)
-	else:
-		logging.basicConfig(level=1)
+	if args.verbose > 0:
+		LOG.setLevel(logging.DEBUG)
 	
 	asyncio.run(exploit(args.kerberos_url))
 	

@@ -1,5 +1,9 @@
 import os
 import logging
+import minikerberos
+
+LOG = minikerberos.getLogger()
+
 import asyncio
 import copy
 from minikerberos.common.factory import KerberosClientFactory, kerberos_url_help_epilog
@@ -17,16 +21,16 @@ async def getTGS(kerberos_url, kirbifile = None):
 
 	cu = KerberosClientFactory.from_url(kerberos_url)
 	client = cu.get_client()
-	logging.debug('Getting TGT')
+	LOG.debug('Getting TGT')
 	await client.get_TGT()
-	logging.debug('Getting TGS for otherdomain krbtgt')
+	LOG.debug('Getting TGS for otherdomain krbtgt')
 	ref_tgs, ref_encpart, ref_key, new_factory = await client.get_referral_ticket(spn.domain)
 	kirbi = Kirbi.from_ticketdata(ref_tgs, ref_encpart)
 	print(str(kirbi))
 	if kirbifile is not None:
 		kirbi.to_file(kirbifile)
 	
-	logging.info('Done!')
+	LOG.info('Done!')
 
 def main():
 	import argparse
@@ -36,14 +40,9 @@ def main():
 	parser.add_argument('--kirbi', help='kirbi file to store the TGT ticket in, otherwise kirbi will be printed to stdout')
 	parser.add_argument('kerberos_url', help='the kerberos target string. ')
 
-	logger.setLevel(logging.DEBUG)
 	args = parser.parse_args()
-	if args.verbose == 0:
-		logging.basicConfig(level=logging.INFO)
-	elif args.verbose == 1:
-		logging.basicConfig(level=logging.DEBUG)
-	else:
-		logging.basicConfig(level=1)
+	if args.verbose > 0:
+		LOG.setLevel(logging.DEBUG)
 	
 	asyncio.run(getTGS(args.kerberos_url, args.kirbi))
 	

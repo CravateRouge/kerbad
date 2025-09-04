@@ -1,4 +1,8 @@
 import logging
+import minikerberos
+
+LOG = minikerberos.getLogger()
+
 import asyncio
 import traceback
 import pathlib
@@ -89,12 +93,8 @@ async def amain():
 	parser.add_argument('-v', '--verbose', action='count', default=0)
 	
 	args = parser.parse_args()
-	if args.verbose == 0:
-		logging.basicConfig(level=logging.INFO)
-	elif args.verbose == 1:
-		logging.basicConfig(level=logging.DEBUG)
-	else:
-		logging.basicConfig(level=1)
+	if args.verbose > 0:
+		LOG.setLevel(logging.DEBUG)
 
 	if len(args.users) == 0:
 		print('Please provide users to kerberoast')

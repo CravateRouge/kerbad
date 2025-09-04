@@ -1,5 +1,9 @@
 import os
 import logging
+import minikerberos
+
+LOG = minikerberos.getLogger()
+
 import ntpath
 
 from minikerberos.common.ccache import CCACHE, Credential
@@ -25,9 +29,7 @@ def main():
 	parser.add_argument('ccachefile', help='input CCACHE file')
 	args = parser.parse_args()
 
-	
-	logging.basicConfig(level=logging.INFO)
-	logging.debug('Opening file %s' % args.ccachefile)
+	LOG.debug('Opening file %s' % args.ccachefile)
 	cc = CCACHE.from_file(args.ccachefile)
 
 	if args.command == 'list':
@@ -65,7 +67,7 @@ def main():
 			
 			temp_cc.credentials.append(cred)
 			i += 1
-		logging.info('Writing edited file to %s' % output_filename)
+		LOG.info('Writing edited file to %s' % output_filename)
 		temp_cc.to_file(output_filename)
 
 if __name__ == '__main__':

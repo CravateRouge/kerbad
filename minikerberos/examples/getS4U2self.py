@@ -1,4 +1,8 @@
 import logging
+import minikerberos
+
+LOG = minikerberos.getLogger()
+
 import asyncio
 
 from minikerberos import logger
@@ -18,23 +22,23 @@ async def getS4U2self(kerberos_url, spn, targetuser, kirbifile = None, ccachefil
 	target_user = KerberosSPN.from_upn(targetuser)
 	
 	if cu.secret_type != KerberosSecretType.CCACHE:
-		logger.debug('Getting TGT')
+		LOG.debug('Getting TGT')
 		await client.get_TGT()
-		logger.debug('Getting S4Uself')
+		LOG.debug('Getting S4Uself')
 		tgs, encTGSRepPart, key = await client.S4U2self(target_user, service_spn, is_dmsa=is_dmsa)
 	else:
-		logger.debug('Getting TGS via TGT from CCACHE')
+		LOG.debug('Getting TGS via TGT from CCACHE')
 		for kirbi in client.credential.ccache.get_all_tgt_kirbis():
 			try:
-				logger.info('Trying to get SPN with %s' % kirbi.get_username())
+				LOG.info('Trying to get SPN with %s' % kirbi.get_username())
 				ccred_test = KerberosCredential.from_kirbi(kirbi.to_hex(), encoding='hex')
 				client = cu.get_client_newcred(ccred_test)
 				tgs, encTGSRepPart, key = await client.S4U2self(target_user, service_spn, is_dmsa=is_dmsa)
-				logger.info('Sucsess!')
+				LOG.info('Sucsess!')
 				break
 			except Exception as e:
 
-				logger.debug('This ticket is not usable it seems Reason: %s' % e)
+				LOG.debug('This ticket is not usable it seems Reason: %s' % e)
 				continue
 	
 	if ccachefile is not None:
@@ -55,7 +59,7 @@ async def getS4U2self(kerberos_url, spn, targetuser, kirbifile = None, ccachefil
 		for previous_key in dmsa_pack['previous-keys']:
 			print("%s: %s" % (Enctype.get_name(previous_key['keytype']), previous_key['keyvalue'].hex()))
 
-	logging.info('Done!')
+	LOG.info('Done!')
 
 
 def main():
@@ -71,12 +75,8 @@ def main():
 	parser.add_argument('targetuser', help='')
 	
 	args = parser.parse_args()
-	if args.verbose == 0:
-		logger.setLevel(logging.WARNING)
-	elif args.verbose == 1:
-		logger.setLevel(logging.INFO)
-	else:
-		logger.setLevel(1)
+	if args.verbose > 0:
+		LOG.setLevel(logging.DEBUG)
 
 	asyncio.run(getS4U2self(args.kerberos_url, args.spn, args.targetuser, args.kirbi, args.ccache, args.dmsa))
 	

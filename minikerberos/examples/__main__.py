@@ -1,5 +1,9 @@
 import os
 import logging
+import minikerberos
+
+LOG = minikerberos.getLogger()
+
 import ntpath
 
 from minikerberos.ccache import CCACHE, Credential
@@ -15,14 +19,9 @@ def main():
 	args = parser.parse_args()
 	
 	###### VERBOSITY
-	if args.verbose == 0:
-		logging.basicConfig(level=logging.INFO)
-	else:
-		logging.basicConfig(level=logging.DEBUG)
-
-	
-	logging.basicConfig(level=logging.INFO)
-	logging.debug('Opening file %s' % args.ccachefile)
+	if args.verbose > 0:
+		LOG.setLevel(logging.DEBUG)
+	LOG.debug('Opening file %s' % args.ccachefile)
 	cc = CCACHE.from_file(args.ccachefile)
 
 	table = []

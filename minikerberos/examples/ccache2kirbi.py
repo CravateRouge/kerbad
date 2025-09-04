@@ -1,5 +1,9 @@
 import os
 import logging
+import minikerberos
+
+LOG = minikerberos.getLogger()
+
 from minikerberos.common.ccache import CCACHE
 
 def main():
@@ -11,18 +15,14 @@ def main():
 	parser.add_argument('-v', '--verbose', action='count', default=0)
 	
 	args = parser.parse_args()
-	if args.verbose == 0:
-		logging.basicConfig(level=logging.INFO)
-	elif args.verbose == 1:
-		logging.basicConfig(level=logging.DEBUG)
-	else:
-		logging.basicConfig(level=1)
+	if args.verbose > 0:
+		LOG.setLevel(logging.DEBUG)
 	
-	logging.info('Parsing CCACHE file')
+	LOG.info('Parsing CCACHE file')
 	cc = CCACHE.from_file(args.ccache)
-	logging.info('Extracting kirbi file(s)')
+	LOG.info('Extracting kirbi file(s)')
 	cc.to_kirbidir(args.kirbidir)
-	logging.info('Done!')
+	LOG.info('Done!')
 
 if __name__ == '__main__':
 	main()
