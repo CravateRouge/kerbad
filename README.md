@@ -28,40 +28,40 @@ Consider to use a Python virtual environment.
 # Examples AKA the pentest tools
 Installing `kerbad` module via pip will automatically place all examples in the `Scripts` directory by the `setuptools` build environment. All tools named in the following way `bad<toolname>`
 
-## kerbad-getTGT
+## badTGT
 Fetches a TGT for the given kerberos credential. The kredential must be in a standard `kerberos URL` format.
 
-## kerbad-getTGS
+## badTGS
 Fetches an TGS ticket (TGSREP) for the given cerberos credential and SPN record.  
 SPN must be in `service/hostname@FQDN` format.
 
-## kerbad-kerberoast
+## badkerberoast
 Also known as SPNRoast, this tool performs a kerberoast attack against one or multiple users, using the provided kerberos credential.
 
-## kerbad-getNTPKInit
+## badNTPKInit
 This tool recovers the NT hash for the user specified by the kerberos credential. This only works if PKINIT (cert based auth) is used.
 
-## kerbad-kerb23hashdecrypt
+## badkerb23hashdecrypt
 This tool attempts to recover the user's NT hash for a list of kerberoast hashes.  
 When you performed a kerberoast attack against one or multiple users, and have a huge list of NT hashes (no password needed) this tool will check each NT hash if it can decrypt the ticket in the kerberoasted hashes.  
 Full disclosure, those are not hashes and it hurt me writing the previous sentence.  
 
-## kerbad-getS4U2self
+## badS4U2self
 This tool is used when you have credentials to a machine account and would like to impersonate other users on the same machine. Machine account credential should be supplied in the `kerberos URL` format, while the user to be impersonated should be in the usual UserPrincialName format eg `username@FQDN`
 
-## kerbad-getS4U2proxy
+## badS4U2proxy
 This tool is used when you have a machine account which has the permission to perform Kerberos Resource-based Constrained Delegation (RBCD). With this, you can impersonate users. For this to work, the machine account must be allowed to delegate on all protocols, not kerberos-only!
 
-## kerbad-ccacheroast
+## badccacheroast
 Performs "Kerberoast" attack on a CCACHE file. You get back the "hashes" for all TGS tickets stored in the CCACHE file.
 
-## kerbad-ccache2kirbi
+## badccache2kirbi
 Converts a CCACHE file to a list of `.kirbi` files.
 
 
-## kerbad-kirbi2ccache
+## badkirbi2ccache
 Converts one or more `.kirbi` files into one CCACHE file
 
-## kerbad-ccacheedit
+## badccacheedit
 Command-line CCACHE file editor. It can list/delete credentials in a CCACHE file.
 
