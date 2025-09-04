@@ -10,7 +10,7 @@ async def getTGT(kerberos_url:str, kirbifile:str = None, ccachefile:str = None, 
 	client = cu.get_client()
 	LOG.debug('Getting TGT')
 	
-	await client.get_TGT(with_pac=nopac)
+	await client.with_clock_skew(client.get_TGT, with_pac=nopac)
 	if ccachefile is not None:
 		client.ccache.to_file(ccachefile)
 		print('TGT stored in ccache file %s' % ccachefile)

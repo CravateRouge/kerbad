@@ -15,13 +15,13 @@ async def getTGS(kerberos_url:str, spn:str, kirbifile:str = None, ccachefile:str
 	cu = KerberosClientFactory.from_url(kerberos_url)
 	client = cu.get_client()
 	LOG.debug('Getting TGT')
-	await client.get_TGT()
+	await client.with_clock_skew(client.get_TGT)
 	if cross_domain is True:
 		LOG.debug('Getting TGS for other domain krbtgt')
 		_, _, _, new_factory = await client.get_referral_ticket(spn.domain)
 		client = new_factory.get_client()
 	LOG.debug('Getting TGS')
-	tgs, encpart, key = await client.get_TGS(spn)
+	tgs, encpart, key = await client.with_clock_skew(client.get_TGS, spn)
 	if ccachefile is not None:
 		client.ccache.to_file(ccachefile)
 		print('TGT stored in ccache file %s' % ccachefile)
@@ -36,7 +36,7 @@ async def getTGS(kerberos_url:str, spn:str, kirbifile:str = None, ccachefile:str
 def main():
 	import argparse
 	
-	parser = argparse.ArgumentParser(description='Polls the kerberos service for a TGS for the sepcified user and specified service', formatter_class=argparse.RawDescriptionHelpFormatter, epilog = kerberos_url_help_epilog)
+	parser = argparse.ArgumentParser(description='Polls the kerberos service for a TGS for the specified user and specified service', formatter_class=argparse.RawDescriptionHelpFormatter, epilog = kerberos_url_help_epilog)
 	parser.add_argument('-v', '--verbose', action='count', default=0)
 	parser.add_argument('--ccache', help='CCACHE file to store the TGT ticket in, otherwise kirbi will be printed to stdout')
 	parser.add_argument('--kirbi', help='kirbi file to store the TGT ticket in, otherwise kirbi will be printed to stdout')

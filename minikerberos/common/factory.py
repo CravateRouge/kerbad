@@ -1,4 +1,3 @@
-
 import getpass
 import copy
 
@@ -15,6 +14,8 @@ from asysocks.unicomm.common.proxy import UniProxyTarget
 from minikerberos.protocol.constants import EncryptionType
 
 kerberos_url_help_epilog = """==== Extra Help ====
+   WARNING: URL special chars (@, :, /, ?, &, =) must be URL encoded!
+
    kerberos connection url secret types: 
    - Plaintext: "pw" or "pass" or "password"
    - NT hash: "nt"
@@ -23,9 +24,10 @@ kerberos_url_help_epilog = """==== Extra Help ====
    - CCACHE file: "ccache"
    - SSPI: "sspi"
    
+   
    Example:
    - Plaintext + SOCKS5 proxy:
-      kerberos+password://domain\\user:SecretPassword@127.0.0.1/proxytype=socks5&proxyhost=127.0.0.1&proxyport=1080
+      kerberos+password://domain\\user:SecretP%40ssword@127.0.0.1/proxytype=socks5&proxyhost=127.0.0.1&proxyport=1080
    - Plaintext:
       kerberos+password://domain\\user:SecretPassword@127.0.0.1
       kerberos+pw://domain\\user:SecretPassword@127.0.0.1

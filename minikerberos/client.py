@@ -42,6 +42,14 @@ class KerbrosClient:
 		self.kerberos_key = None
 		self.server_salt = None
 		self.pkinit_tkey = None
+		self.clock_skew = None
+
+	def _now(self):
+		now = datetime.datetime.now(datetime.timezone.utc)
+		if self.clock_skew is not None:
+			logger.debug(f"Adjusting time with clock skew of {self.clock_skew}")
+			return now + self.clock_skew
+		return now
 
 	def build_asreq_lts(self, supported_encryption_method, kdcopts:List[str] = ['forwardable','renewable','proxiable'], enctimestamp=None, newnow=None, no_preauth = False, kdc_req_body_extra = None, with_pac:bool = True) -> AS_REQ:
 		logger.debug('Constructing TGT request with auth data')
@@ -55,7 +63,7 @@ class KerbrosClient:
 			padatas.append(pa_data_1)
 		
 		logger.debug('Selecting common encryption type: %s' % supported_encryption_method.name)
-		now = newnow if newnow else datetime.datetime.now(datetime.timezone.utc)
+		now = self._now()
 		if no_preauth is False:
 			if enctimestamp is None:
 				#creating timestamp asn1
@@ -103,7 +111,7 @@ class KerbrosClient:
 			raise Exception('RC4 encryption is not supported for certificate auth!')
 
 
-		now = datetime.datetime.now(datetime.timezone.utc)
+		now = self._now()
 
 		kdc_req_body_data = {}
 		kdc_req_body_data['kdc-options'] = KDCOptions(set(kdcopts))
@@ -176,23 +184,10 @@ class KerbrosClient:
 			req = self.build_asreq_pkinit(supported_encryption_method, kdcopts, with_pac=with_pac)
 		else:
 			req = self.build_asreq_lts(supported_encryption_method, kdcopts, with_pac=with_pac)
-
-		
+	
 		logger.debug('Sending TGT request to server')
 		rep = self.ksoc.sendrecv(req.dump())
 		if rep.name == 'KRB_ERROR':
-			e = KerberosError(rep, 'Preauth failed!')
-			# For now I do the clock trick only for asreq, idk if it's useful for pkinit
-			if self.credential.certificate is not None or e.errorcode != KerberosErrorCode.KRB_AP_ERR_SKEW:
-					raise e
-			logger.warning(f"Clock skew too great")
-			logger.debug(f"Server (UTC): {e.krb_err_msg['stime']}")
-			logger.debug(f"Client (UTC): {datetime.datetime.now(datetime.timezone.utc)}")
-
-			logger.debug("Trying to synchronize...")
-			req = self.build_asreq_lts(supported_encryption_method, kdcopts, with_pac=with_pac, newnow=e.krb_err_msg['stime'])
-			rep = self.ksoc.sendrecv(req.dump())
-			if rep.name == 'KRB_ERROR':
 				raise KerberosError(rep, 'Preauth failed!')
 		return rep
 
@@ -263,7 +258,7 @@ class KerbrosClient:
 
 		if self.credential.nopreauth:
 			logger.debug('Generating initial TGT without authentication data')
-			now = datetime.datetime.now(datetime.timezone.utc)
+			now = self._now()
 			kdc_req_body = {}
 			kdc_req_body['kdc-options'] = KDCOptions(set(kdcopts))
 			kdc_req_body['cname'] = PrincipalName({'name-type': NAME_TYPE.PRINCIPAL.value, 'name-string': self.credential.username.split('/')})
@@ -401,83 +396,72 @@ class KerbrosClient:
 			_, err = self.tgt_from_ccache()
 			if err is not None:
 				raise Exception('No TGT found in CCACHE!')
-		def build_TGS_req(newnow=None):
-			#nope, we need to contact the server
-			logger.debug('Constructing TGS request for user %s' % spn_user.get_formatted_pname())
-			now = datetime.datetime.now(datetime.timezone.utc)
-			kdc_req_body = {}
-			kdc_req_body['kdc-options'] = KDCOptions(set(['forwardable','renewable','renewable_ok', 'canonicalize']))
-			kdc_req_body['realm'] = spn_user.domain.upper()
-			kdc_req_body['sname'] = PrincipalName({'name-type': NAME_TYPE.SRV_INST.value, 'name-string': spn_user.get_principalname()})
-			kdc_req_body['till'] = (now + datetime.timedelta(days=1)).replace(microsecond=0)
-			kdc_req_body['nonce'] = secrets.randbits(31)
-			if override_etype:
-				kdc_req_body['etype'] = override_etype
+
+
+		#nope, we need to contact the server
+		logger.debug('Constructing TGS request for user %s' % spn_user.get_formatted_pname())
+		now = self._now()
+		kdc_req_body = {}
+		kdc_req_body['kdc-options'] = KDCOptions(set(['forwardable','renewable','renewable_ok', 'canonicalize']))
+		kdc_req_body['realm'] = spn_user.domain.upper()
+		kdc_req_body['sname'] = PrincipalName({'name-type': NAME_TYPE.SRV_INST.value, 'name-string': spn_user.get_principalname()})
+		kdc_req_body['till'] = (now + datetime.timedelta(days=1)).replace(microsecond=0)
+		kdc_req_body['nonce'] = secrets.randbits(31)
+		if override_etype:
+			kdc_req_body['etype'] = override_etype
+		else:
+			if self.kerberos_cipher_type == -128:
+				# we dunno how to do GSS api calls with -128 etype,
+				# but we can request etype 23 here for which all is implemented
+				kdc_req_body['etype'] = [23]
 			else:
-				if self.kerberos_cipher_type == -128:
-					# we dunno how to do GSS api calls with -128 etype,
-					# but we can request etype 23 here for which all is implemented
-					kdc_req_body['etype'] = [23]
-				else:
-					kdc_req_body['etype'] = [self.kerberos_cipher_type, 23]
+				kdc_req_body['etype'] = [self.kerberos_cipher_type, 23]
 
-			authenticator_data = {}
-			authenticator_data['authenticator-vno'] = krb5_pvno
-			authenticator_data['crealm'] = Realm(self.kerberos_TGT['crealm'])
-			authenticator_data['cname'] = self.kerberos_TGT['cname']
-			authenticator_data['cusec'] = now.microsecond
-			authenticator_data['ctime'] = now.replace(microsecond=0)
-			
-			if is_linux:
-				ac = AuthenticatorChecksum()
-				ac.flags = 0
-				ac.channel_binding = b'\x00'*16
-				
-				chksum = {}
-				chksum['cksumtype'] = 0x8003
-				chksum['checksum'] = ac.to_bytes()
-
-
-				authenticator_data['cksum'] = Checksum(chksum)
-				authenticator_data['seq-number'] = 0
-			
-			authenticator_data_enc = self.kerberos_cipher.encrypt(self.kerberos_session_key, 7, Authenticator(authenticator_data).dump(), None)
-			
-			ap_req = {}
-			ap_req['pvno'] = krb5_pvno
-			ap_req['msg-type'] = MESSAGE_TYPE.KRB_AP_REQ.value
-			ap_req['ap-options'] = APOptions(set())
-			ap_req['ticket'] = Ticket(self.kerberos_TGT['ticket'])
-			ap_req['authenticator'] = EncryptedData({'etype': self.kerberos_cipher_type, 'cipher': authenticator_data_enc})
-			
-			pa_data_1 = {}
-			pa_data_1['padata-type'] = PaDataType.TGS_REQ.value
-			pa_data_1['padata-value'] = AP_REQ(ap_req).dump()
-			
-			
-			kdc_req = {}
-			kdc_req['pvno'] = krb5_pvno
-			kdc_req['msg-type'] = MESSAGE_TYPE.KRB_TGS_REQ.value
-			kdc_req['padata'] = [pa_data_1]
-			kdc_req['req-body'] = KDC_REQ_BODY(kdc_req_body)
-			return kdc_req
+		authenticator_data = {}
+		authenticator_data['authenticator-vno'] = krb5_pvno
+		authenticator_data['crealm'] = Realm(self.kerberos_TGT['crealm'])
+		authenticator_data['cname'] = self.kerberos_TGT['cname']
+		authenticator_data['cusec'] = now.microsecond
+		authenticator_data['ctime'] = now.replace(microsecond=0)
 		
-		req = TGS_REQ(build_TGS_req())
+		if is_linux:
+			ac = AuthenticatorChecksum()
+			ac.flags = 0
+			ac.channel_binding = b'\x00'*16
+			
+			chksum = {}
+			chksum['cksumtype'] = 0x8003
+			chksum['checksum'] = ac.to_bytes()
+
+
+			authenticator_data['cksum'] = Checksum(chksum)
+			authenticator_data['seq-number'] = 0
+		
+		authenticator_data_enc = self.kerberos_cipher.encrypt(self.kerberos_session_key, 7, Authenticator(authenticator_data).dump(), None)
+		
+		ap_req = {}
+		ap_req['pvno'] = krb5_pvno
+		ap_req['msg-type'] = MESSAGE_TYPE.KRB_AP_REQ.value
+		ap_req['ap-options'] = APOptions(set())
+		ap_req['ticket'] = Ticket(self.kerberos_TGT['ticket'])
+		ap_req['authenticator'] = EncryptedData({'etype': self.kerberos_cipher_type, 'cipher': authenticator_data_enc})
+		
+		pa_data_1 = {}
+		pa_data_1['padata-type'] = PaDataType.TGS_REQ.value
+		pa_data_1['padata-value'] = AP_REQ(ap_req).dump()
+		
+		
+		kdc_req = {}
+		kdc_req['pvno'] = krb5_pvno
+		kdc_req['msg-type'] = MESSAGE_TYPE.KRB_TGS_REQ.value
+		kdc_req['padata'] = [pa_data_1]
+		kdc_req['req-body'] = KDC_REQ_BODY(kdc_req_body)
+	
+		req = TGS_REQ(kdc_req)
 		logger.debug('Constructing TGS request to server')
 		rep = self.ksoc.sendrecv(req.dump())
 		if rep.name == 'KRB_ERROR':
-			e = KerberosError(rep, 'get_TGS failed!')
-			if e.errorcode != KerberosErrorCode.KRB_AP_ERR_SKEW:
-				raise e
-			logger.warning(f"Clock skew too great")
-			logger.debug(f"Server (UTC): {e.krb_err_msg['stime'].replace(microsecond=0)}")
-			logger.debug(f"Client (UTC): {datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)}")
-
-			logger.debug("Trying to synchronize...")
-			req = TGS_REQ(build_TGS_req(newnow=e.krb_err_msg['stime']))
-			rep = self.ksoc.sendrecv(req.dump())
-			if rep.name == 'KRB_ERROR':
-				raise KerberosError(rep, 'get_TGS failed!')
+			raise KerberosError(rep, 'get_TGS failed!')
 		logger.debug('Got TGS reply, decrypting...')
 		tgs = rep.native
 		
@@ -495,7 +479,7 @@ class KerbrosClient:
 			self.get_TGT()
 
 		supp_enc = self.credential.get_preferred_enctype(supp_enc_methods)
-		now = datetime.datetime.now(datetime.timezone.utc)
+		now = self._now()
 		authenticator_data = {}
 		authenticator_data['authenticator-vno'] = krb5_pvno
 		authenticator_data['crealm'] = Realm(self.kerberos_TGT['crealm'])
@@ -572,7 +556,7 @@ class KerbrosClient:
 			self.get_TGT()
 		
 		auth_package_name = 'Kerberos'
-		now = datetime.datetime.now(datetime.timezone.utc)
+		now = self._now()
 		
 		
 		###### Calculating authenticator data
@@ -710,7 +694,7 @@ class KerbrosClient:
 	# https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-sfu/c920c148-8a9c-42e9-b8e9-db5755cd281b
 	def S4U2proxy(self, s4uself_ticket, spn_user, supp_enc_methods = [EncryptionType.ARCFOUR_HMAC_MD5,EncryptionType.AES256_CTS_HMAC_SHA1_96,EncryptionType.AES128_CTS_HMAC_SHA1_96]):
 		logger.debug('[S4U2proxy] Impersonating %s' % '/'.join(spn_user.get_principalname()))
-		now = datetime.datetime.now(datetime.timezone.utc)
+		now = self._now()
 		supp_enc = self.credential.get_preferred_enctype(supp_enc_methods)
 		
 		pa_pac_opts = {}
@@ -851,5 +835,21 @@ class KerbrosClient:
 		session_key = Key(cipher.enctype, encasrep['key']['keyvalue'])
 		return encasrep, session_key, cipher
 
+	def with_clock_skew(self, func, *args, **kwargs):
+		"""
+		Calls the given function with arguments. If a KerberosError with KRB_AP_ERR_SKEW is raised,
+		computes the clock skew, sets self.clock_skew, and retries the function once.
+		Usage: client.with_clock_skew(client.get_TGS, spn)
+		"""
+		try:
+			return func(*args, **kwargs)
+		except KerberosError as e:
+			if getattr(e, 'errorcode', None) == KerberosErrorCode.KRB_AP_ERR_SKEW:
+				server_time = e.krb_err_msg['stime']
+				local_time = datetime.datetime.now(datetime.timezone.utc)
+				self.clock_skew = server_time - local_time
+				logger.warning(f"Clock skew detected. Adjusting local time by {self.clock_skew}. Retrying operation.")
+				return func(*args, **kwargs)
+			raise
 
-	
+

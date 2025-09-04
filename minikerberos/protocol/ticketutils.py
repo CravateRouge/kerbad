@@ -11,7 +11,7 @@ from minikerberos.protocol.constants import NAME_TYPE, MESSAGE_TYPE
 from minikerberos.protocol.structures import AuthenticatorChecksum
 from minikerberos.gssapi.channelbindings import ChannelBindingsStruct
 
-def construct_apreq_from_tgs_tgt(tgs, sessionkey, tgt, flags = None, seq_number = 0, ap_opts = [], cb_data = None):
+def construct_apreq_from_tgs_tgt(tgs, sessionkey, tgt, flags = None, seq_number = 0, ap_opts = [], cb_data = None, now=None):
 	return construct_apreq_from_tgs(
 		tgs,
 		sessionkey,
@@ -20,10 +20,11 @@ def construct_apreq_from_tgs_tgt(tgs, sessionkey, tgt, flags = None, seq_number 
 		flags,
 		seq_number,
 		ap_opts,
-		cb_data
+		cb_data,
+		now=now
 	)
 
-def construct_apreq_from_tgs(tgs, sessionkey, crealm, cname, flags = None, seq_number = 0, ap_opts = [], cb_data = None):
+def construct_apreq_from_tgs(tgs, sessionkey, crealm, cname, flags = None, seq_number = 0, ap_opts = [], cb_data = None, now=None):
 	return construct_apreq_from_ticket(
 		Ticket(tgs['ticket']).dump(),
 		sessionkey,
@@ -32,11 +33,13 @@ def construct_apreq_from_tgs(tgs, sessionkey, crealm, cname, flags = None, seq_n
 		flags,
 		seq_number,
 		ap_opts,
-		cb_data
+		cb_data,
+		now=now
 	)
 
-def construct_apreq_from_ticket(ticket_data, sessionkey, crealm, cname, flags = None, seq_number = 0, ap_opts = [], cb_data = None):
-	now = datetime.datetime.now(datetime.timezone.utc)
+def construct_apreq_from_ticket(ticket_data, sessionkey, crealm, cname, flags = None, seq_number = 0, ap_opts = [], cb_data = None, now=None):
+	if now is None:
+		now = datetime.datetime.now(datetime.timezone.utc)
 	authenticator_data = {}
 	authenticator_data['authenticator-vno'] = krb5_pvno
 	if isinstance(crealm, Realm):
