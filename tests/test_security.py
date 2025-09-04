@@ -1,9 +1,9 @@
-from minikerberos.common.factory import KerberosClientFactory
-from minikerberos.common.spn import KerberosSPN
-from minikerberos.common.creds import KerberosCredential
-from minikerberos.common.kirbi import Kirbi
-from minikerberos.security import krb5userenum, asreproast, kerberoast
-from minikerberos.common.target import KerberosTarget
+from kerbad.common.factory import KerberosClientFactory
+from kerbad.common.spn import KerberosSPN
+from kerbad.common.creds import KerberosCredential
+from kerbad.common.kirbi import Kirbi
+from kerbad.security import krb5userenum, asreproast, kerberoast
+from kerbad.common.target import KerberosTarget
 import asyncio
 import pytest 
 from .config import *

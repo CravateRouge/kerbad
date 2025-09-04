@@ -2,8 +2,8 @@
 import pathlib
 import base64
 import tempfile
-from minikerberos.common.kirbi import Kirbi
-from minikerberos.common.ccache import CCACHE, Header, DateTime, Times,\
+from kerbad.common.kirbi import Kirbi
+from kerbad.common.ccache import CCACHE, Header, DateTime, Times,\
 	Address, CCACHEOctetString, Authdata, Credential
 from .config import *
 

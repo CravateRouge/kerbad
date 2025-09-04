@@ -1,1 +1,1 @@
-pytest --cov-config=.coveragerc --cov-report html --cov=minikerberos
+pytest --cov-config=.coveragerc --cov-report html --cov=kerbad

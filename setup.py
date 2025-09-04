@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 import re
 
-VERSIONFILE="minikerberos/_version.py"
+VERSIONFILE="kerbad/_version.py"
 verstrline = open(VERSIONFILE, "rt").read()
 VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
 mo = re.search(VSRE, verstrline, re.M)
@@ -12,7 +12,7 @@ else:
 
 setup(
 	# Application name:
-	name="minikerberos-bAD",
+	name="kerbad",
 
 	# Version number (initial):
 	version=verstr,
@@ -33,7 +33,7 @@ setup(
 
 
 	# Details
-	url="https://github.com/CravateRouge/minikerberos-bAD",
+	url="https://github.com/CravateRouge/kerbad",
 
 	zip_safe=True,
 	#
@@ -58,21 +58,21 @@ setup(
 
 	entry_points={
 		'console_scripts': [
-			'minikerberosbad-ccacheedit   = minikerberos.examples.ccache_editor:main',
-			'minikerberosbad-kirbi2ccache = minikerberos.examples.kirbi2ccache:main',
-			'minikerberosbad-ccache2kirbi = minikerberos.examples.ccache2kirbi:main',
-			'minikerberosbad-ccacheroast  = minikerberos.examples.ccacheroast:main',
-			'minikerberosbad-getTGT       = minikerberos.examples.getTGT:main',
-			'minikerberosbad-getTGS       = minikerberos.examples.getTGS:main',
-			'minikerberosbad-getS4U2proxy = minikerberos.examples.getS4U2proxy:main',
-			'minikerberosbad-getS4U2self  = minikerberos.examples.getS4U2self:main',
-			'minikerberosbad-getNTPKInit  = minikerberos.examples.getNT:main',
-			'minikerberosbad-cve202233647 = minikerberos.examples.CVE_2022_33647:main',
-			'minikerberosbad-cve202233679 = minikerberos.examples.CVE_2022_33679:main',
-			'minikerberosbad-kerb23hashdecrypt = minikerberos.examples.kerb23hashdecrypt:main',
-			'minikerberosbad-kerberoast   = minikerberos.examples.spnroast:main',
-            'minikerberosbad-asreproast   = minikerberos.examples.asreproast:main',
-            'minikerberosbad-changepw   = minikerberos.examples.changepassword:main',
+			'badccacheedit   = kerbad.examples.ccache_editor:main',
+			'badkirbi2ccache = kerbad.examples.kirbi2ccache:main',
+			'badccache2kirbi = kerbad.examples.ccache2kirbi:main',
+			'badccacheroast  = kerbad.examples.ccacheroast:main',
+			'badTGT       = kerbad.examples.getTGT:main',
+			'badTGS       = kerbad.examples.getTGS:main',
+			'badS4U2proxy = kerbad.examples.getS4U2proxy:main',
+			'badS4U2self  = kerbad.examples.getS4U2self:main',
+			'badNTPKInit  = kerbad.examples.getNT:main',
+			'badcve202233647 = kerbad.examples.CVE_2022_33647:main',
+			'badcve202233679 = kerbad.examples.CVE_2022_33679:main',
+			'badkerb23hashdecrypt = kerbad.examples.kerb23hashdecrypt:main',
+			'badkerberoast   = kerbad.examples.spnroast:main',
+            'badasreproast   = kerbad.examples.asreproast:main',
+            'badchangepw   = kerbad.examples.changepassword:main',
 		],
 	}
 )

@@ -1,5 +1,5 @@
 
-from minikerberos.protocol.encryption import Key, Enctype, encrypt, decrypt, verify_checksum, Cksumtype, string_to_key, cf2, _zeropad, prf
+from kerbad.protocol.encryption import Key, Enctype, encrypt, decrypt, verify_checksum, Cksumtype, string_to_key, cf2, _zeropad, prf
 from binascii import unhexlify as h
 
 def test_encdec_aes():

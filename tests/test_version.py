@@ -1,4 +1,4 @@
-from minikerberos._version import __version__, __banner__
+from kerbad._version import __version__, __banner__
 
 def test_version():
     assert __version__.count('.') == 2

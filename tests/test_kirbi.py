@@ -2,7 +2,7 @@
 
 import tempfile
 import pathlib
-from minikerberos.common.kirbi import Kirbi
+from kerbad.common.kirbi import Kirbi
 from .config import *
 
 

@@ -1,15 +1,15 @@
 import tempfile
 import pathlib
 import asyncio
-from minikerberos.common.ccache import CCACHE
-from minikerberos.common.kirbi import Kirbi
+from kerbad.common.ccache import CCACHE
+from kerbad.common.kirbi import Kirbi
 import pytest
 import shutil
 import os
 from .config import *
 
 def test_ccacheroast():
-	from minikerberos.examples.ccacheroast import ccacheroast
+	from kerbad.examples.ccacheroast import ccacheroast
 	ccache = CCACHE()
 	with tempfile.NamedTemporaryFile() as f:
 		for kirbifile in get_testfiles_kirbi():
@@ -23,7 +23,7 @@ def test_ccacheroast():
 # testcases for spnroast
 @pytest.mark.asyncio
 async def test_spnroast_base():
-	from minikerberos.examples.spnroast import spnroast
+	from kerbad.examples.spnroast import spnroast
 	with tempfile.NamedTemporaryFile() as f:
 		x = await spnroast(KERBEROS_CONN_URL_PW, KERBEROS_KERBEROAST_USER, KERBEROS_DOMAIN, f.name)
 		f.flush()
@@ -33,7 +33,7 @@ async def test_spnroast_base():
 
 @pytest.mark.asyncio
 async def test_spnroast_23():
-	from minikerberos.examples.spnroast import spnroast
+	from kerbad.examples.spnroast import spnroast
 	with tempfile.NamedTemporaryFile() as f:
 		x = await spnroast(KERBEROS_CONN_URL_PW, KERBEROS_KERBEROAST_USER, KERBEROS_DOMAIN, f.name, etypes=23)
 		f.flush()
@@ -43,7 +43,7 @@ async def test_spnroast_23():
 
 @pytest.mark.asyncio
 async def test_spnroast_all():
-	from minikerberos.examples.spnroast import spnroast
+	from kerbad.examples.spnroast import spnroast
 	with tempfile.NamedTemporaryFile() as f:
 		x = await spnroast(KERBEROS_CONN_URL_PW, KERBEROS_KERBEROAST_USER, KERBEROS_DOMAIN, f.name, etypes='23,17,18')
 		f.flush()
@@ -53,7 +53,7 @@ async def test_spnroast_all():
 
 @pytest.mark.asyncio
 async def test_spnroast_list():
-	from minikerberos.examples.spnroast import spnroast
+	from kerbad.examples.spnroast import spnroast
 	with tempfile.NamedTemporaryFile() as f:
 		x = await spnroast(KERBEROS_CONN_URL_PW, [KERBEROS_KERBEROAST_USER], KERBEROS_DOMAIN, f.name)
 		f.flush()
@@ -63,7 +63,7 @@ async def test_spnroast_list():
 
 @pytest.mark.asyncio
 async def test_spnroast_file():
-	from minikerberos.examples.spnroast import spnroast
+	from kerbad.examples.spnroast import spnroast
 	with tempfile.NamedTemporaryFile('w') as d:
 		d.write(KERBEROS_KERBEROAST_USER)
 		d.flush()
@@ -76,7 +76,7 @@ async def test_spnroast_file():
 
 @pytest.mark.asyncio
 async def test_spnroast_filedomain():
-	from minikerberos.examples.spnroast import spnroast
+	from kerbad.examples.spnroast import spnroast
 	with tempfile.NamedTemporaryFile('w') as d:
 		d.write(KERBEROS_KERBEROAST_USER + '@' + KERBEROS_DOMAIN)
 		d.flush()
@@ -89,7 +89,7 @@ async def test_spnroast_filedomain():
 
 @pytest.mark.asyncio
 async def test_spnroast_listdomain():
-	from minikerberos.examples.spnroast import spnroast
+	from kerbad.examples.spnroast import spnroast
 	with tempfile.NamedTemporaryFile() as f:
 		x = await spnroast(KERBEROS_CONN_URL_PW, [KERBEROS_KERBEROAST_USER + '@' + KERBEROS_DOMAIN], KERBEROS_DOMAIN, f.name)
 		f.flush()
@@ -98,7 +98,7 @@ async def test_spnroast_listdomain():
 		assert len(data) > 0
 
 def test_kirbi2ccache():
-	from minikerberos.examples.kirbi2ccache import kirbi2ccache
+	from kerbad.examples.kirbi2ccache import kirbi2ccache
 	ccache = CCACHE()
 	for kirbifile in get_testfiles_kirbi():
 		kirbi = Kirbi.from_file(kirbifile)
@@ -110,7 +110,7 @@ def test_kirbi2ccache():
 
 @pytest.mark.asyncio
 async def test_gettgt():
-	from minikerberos.examples.getTGT import getTGT
+	from kerbad.examples.getTGT import getTGT
 	with tempfile.NamedTemporaryFile() as d:
 		with tempfile.NamedTemporaryFile() as f:
 			await getTGT(KERBEROS_CONN_URL_PW, d.name, f.name)
@@ -121,7 +121,7 @@ async def test_gettgt():
 
 @pytest.mark.asyncio
 async def test_gettgt_nopac():
-	from minikerberos.examples.getTGT import getTGT
+	from kerbad.examples.getTGT import getTGT
 	with tempfile.NamedTemporaryFile() as d:
 		with tempfile.NamedTemporaryFile() as f:
 			await getTGT(KERBEROS_CONN_URL_PW, d.name, f.name, nopac=True)
@@ -132,7 +132,7 @@ async def test_gettgt_nopac():
 
 @pytest.mark.asyncio
 async def test_gettgs():
-	from minikerberos.examples.getTGS import getTGS
+	from kerbad.examples.getTGS import getTGS
 	with tempfile.NamedTemporaryFile() as d:
 		with tempfile.NamedTemporaryFile() as f:
 			await getTGS(KERBEROS_CONN_URL_PW, KERBEROS_TGS_SPN ,d.name, f.name)
@@ -143,7 +143,7 @@ async def test_gettgs():
 
 @pytest.mark.asyncio
 async def test_getS4U2Self():
-	from minikerberos.examples.getS4U2self import getS4U2self
+	from kerbad.examples.getS4U2self import getS4U2self
 	with tempfile.NamedTemporaryFile() as d:
 		with tempfile.NamedTemporaryFile() as f:
 			await getS4U2self(KERBEROS_CONN_URL_MACHINE, KERBEROS_DELEGATION_SPN_SELF, KERBEROS_DELEGATION_USER_SELF,d.name, f.name)
@@ -155,8 +155,8 @@ async def test_getS4U2Self():
 @pytest.mark.asyncio
 async def test_getS4U2Self_ccache():
 	import os
-	from minikerberos.examples.getS4U2self import getS4U2self
-	from minikerberos.examples.getTGT import getTGT
+	from kerbad.examples.getS4U2self import getS4U2self
+	from kerbad.examples.getTGT import getTGT
 	try:
 		await getTGT(KERBEROS_CONN_URL_MACHINE, ccachefile='test.ccache')
 		with tempfile.NamedTemporaryFile() as d:
@@ -171,7 +171,7 @@ async def test_getS4U2Self_ccache():
 
 @pytest.mark.asyncio
 async def test_getS4U2proxy():
-	from minikerberos.examples.getS4U2proxy import getS4U2proxy
+	from kerbad.examples.getS4U2proxy import getS4U2proxy
 	with tempfile.NamedTemporaryFile() as d:
 		with tempfile.NamedTemporaryFile() as f:
 			await getS4U2proxy(KERBEROS_CONN_URL_MACHINE, KERBEROS_DELEGATION_SPN_PROXY, KERBEROS_DELEGATION_USER_PROXY, d.name, f.name)
@@ -183,8 +183,8 @@ async def test_getS4U2proxy():
 @pytest.mark.asyncio
 async def test_getS4U2proxy_ccache():
 	import os
-	from minikerberos.examples.getS4U2proxy import getS4U2proxy
-	from minikerberos.examples.getTGT import getTGT
+	from kerbad.examples.getS4U2proxy import getS4U2proxy
+	from kerbad.examples.getTGT import getTGT
 	try:
 		await getTGT(KERBEROS_CONN_URL_MACHINE, ccachefile='test.ccache')
 		with tempfile.NamedTemporaryFile() as d:
@@ -199,7 +199,7 @@ async def test_getS4U2proxy_ccache():
 
 @pytest.mark.asyncio
 async def test_getnt():
-	from minikerberos.examples.getNT import get_NT
+	from kerbad.examples.getNT import get_NT
 	#moving certificate to current path...
 	current_file_path = pathlib.Path(__file__).parent.absolute()
 	cert_file_path = current_file_path.joinpath('testdata', 'test.pfx')
@@ -212,7 +212,7 @@ async def test_getnt():
 
 @pytest.mark.asyncio
 async def test_cve_2022_33679():
-	from minikerberos.examples.CVE_2022_33679 import exploit
+	from kerbad.examples.CVE_2022_33679 import exploit
 	with tempfile.NamedTemporaryFile() as f:
 		await exploit(KERBEROS_CONN_URL_ASREP_MD4ARC4, f.name)
 		kirbi = Kirbi.from_file(f.name)

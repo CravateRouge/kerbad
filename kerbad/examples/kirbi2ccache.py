@@ -1,0 +1,39 @@
+import os
+import logging
+import kerbad
+
+LOG = kerbad.getLogger()
+
+from kerbad.common.ccache import CCACHE
+
+def kirbi2ccache(kirbi, ccache):
+	abs_path = os.path.abspath(kirbi)
+	if os.path.isdir(abs_path):	
+		LOG.info('Parsing kirbi files in directory %s' % abs_path)
+		cc = CCACHE.from_kirbidir(abs_path)
+		cc.to_file(ccache)
+		
+	else:
+		LOG.info('Parsing kirbi file %s' % abs_path)
+		cc = CCACHE.from_kirbifile(abs_path)
+		cc.to_file(ccache)
+
+def main():
+	import argparse
+	
+	parser = argparse.ArgumentParser(description='Convert kirbi file(s) to a single ccache file')
+	parser.add_argument('kirbi', help='path to the kirbi file or a of kirbi files')
+	parser.add_argument('ccache', help='ccache file name to be created')
+	
+	parser.add_argument('-v', '--verbose', action='count', default=0)
+	
+	args = parser.parse_args()
+	if args.verbose > 0:
+		LOG.setLevel(logging.DEBUG)
+	
+	kirbi2ccache(args.kirbi, args.ccache)
+		
+	LOG.info('Done!')
+
+if __name__ == '__main__':
+	main()

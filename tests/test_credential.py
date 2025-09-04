@@ -3,13 +3,13 @@ import os
 import pathlib
 import pytest
 import base64
-from minikerberos.common.factory import KerberosClientFactory
-from minikerberos.common.creds import KerberosCredential
-from minikerberos.common.constants import KerberosSecretType
-from minikerberos.common.ccache import CCACHE
-from minikerberos.protocol.constants import EncryptionType 
-from minikerberos.common.keytab import Keytab
-from minikerberos.protocol.encryption import Enctype 
+from kerbad.common.factory import KerberosClientFactory
+from kerbad.common.creds import KerberosCredential
+from kerbad.common.constants import KerberosSecretType
+from kerbad.common.ccache import CCACHE
+from kerbad.protocol.constants import EncryptionType 
+from kerbad.common.keytab import Keytab
+from kerbad.protocol.encryption import Enctype 
 from .config import *
 
 def test_url_nt_1():

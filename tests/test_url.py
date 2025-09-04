@@ -1,8 +1,8 @@
 import shutil
 import os
 
-from minikerberos.common.factory import KerberosClientFactory
-from minikerberos.common.ccache import CCACHE
+from kerbad.common.factory import KerberosClientFactory
+from kerbad.common.ccache import CCACHE
 from .config import *
 
 

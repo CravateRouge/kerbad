@@ -2,7 +2,7 @@
 
 import tempfile
 import pathlib
-from minikerberos.common.keytab import Keytab, KeytabPrincipal, KeytabOctetString
+from kerbad.common.keytab import Keytab, KeytabPrincipal, KeytabOctetString
 from .config import *
 
 

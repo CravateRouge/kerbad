@@ -1,9 +1,9 @@
-from minikerberos.common.factory import KerberosClientFactory
-from minikerberos.common.spn import KerberosSPN
-from minikerberos.common.creds import KerberosCredential
-from minikerberos.common.kirbi import Kirbi
-from minikerberos.protocol.external.ticketutil import get_NT_from_PAC
-from minikerberos.protocol.ticketutils import construct_apreq_from_tgs_tgt
+from kerbad.common.factory import KerberosClientFactory
+from kerbad.common.spn import KerberosSPN
+from kerbad.common.creds import KerberosCredential
+from kerbad.common.kirbi import Kirbi
+from kerbad.protocol.external.ticketutil import get_NT_from_PAC
+from kerbad.protocol.ticketutils import construct_apreq_from_tgs_tgt
 import tempfile
 import asyncio
 import pathlib
