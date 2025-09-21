@@ -703,7 +703,7 @@ class AIOKerberosClient:
 		self.ccache.add_tgs(tgs, encTGSRepPart)
 		logger.debug('[S4U2self] Got valid TGS reply')
 
-		return tgs, encTGSRepart, key
+		return tgs, encTGSRepPart, key
 		
 	# https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-sfu/c920c148-8a9c-42e9-b8e9-db5755cd281b
 	async def S4U2proxy(self, s4uself_ticket, spn_user):
