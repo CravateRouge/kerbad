@@ -251,6 +251,10 @@ class AIOKerberosClient:
 		preferred_enc_type = self.credential.get_preferred_enctype(self.server_supp_enc_methods)
 		if preferred_enc_type not in self.server_supp_enc_methods:
 			raise Exception('Preferred enc type not in supported enctypes')
+		salt = self.server_supp_enc_methods[preferred_enc_type]
+		if salt is not None:
+			salt = salt.encode()
+		self.server_salt = salt #enc_info['salt'].encode()
 		return preferred_enc_type, common_enctypes
 
 
@@ -331,7 +335,7 @@ class AIOKerberosClient:
 				logger.debug('Failed to get TGT with etype %s' % etype.name)
 				# If the server suggested encryption methods, we will use them
 				if e.krb_err_msg.get('e-data'):
-					srv_etype = self.select_preferred_encryption_method(e.krb_err_msg)
+					srv_etype,default_supported_etypes = self.select_preferred_encryption_method(e.krb_err_msg)
 					logger.debug('Trying with supported suggested etype %s' % srv_etype.name)
 					preauth_rep = await self.do_preauth(srv_etype, with_pac=with_pac)
 					break

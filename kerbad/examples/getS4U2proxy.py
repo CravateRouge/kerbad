@@ -5,7 +5,6 @@ LOG = kerbad.getLogger()
 
 import asyncio
 
-from kerbad import logger
 from kerbad.common.factory import KerberosClientFactory, kerberos_url_help_epilog
 from kerbad.common.constants import KerberosSecretType
 from kerbad.common.spn import KerberosSPN
@@ -19,7 +18,7 @@ async def getS4U2proxy(kerberos_url, spn, targetuser, kirbifile = None, ccachefi
 	service_spn = KerberosSPN.from_spn(spn)
 	target_user = KerberosSPN.from_upn(targetuser)
 	
-	if cu.secret_type != KerberosSecretType.CCACHE:
+	if not cu.secret_type.name.startswith(KerberosSecretType.CCACHE.name):
 		LOG.debug('Getting TGT')
 		await client.with_clock_skew(client.get_TGT)
 		LOG.debug('Getting S4Uself')

@@ -1,5 +1,6 @@
 import getpass
 import copy
+import base64
 
 from kerbad.common.target import KerberosTarget
 from kerbad.common.creds import KerberosCredential
@@ -16,38 +17,45 @@ from kerbad.protocol.constants import EncryptionType
 kerberos_url_help_epilog = """==== Extra Help ====
    WARNING: URL special chars (@, :, /, ?, &, =) must be URL encoded!
 
-   kerberos connection url secret types: 
+   Kerberos connection secret types: 
    - Plaintext: "pw" or "pass" or "password"
-   - NT hash: "nt"
-   - RC4 key: "rc4"
+   - NT/RC4 key: "nt" or "rc4"
    - AES128/256 key: "aes"
-   - CCACHE file: "ccache"
-   - SSPI: "sspi"
+   - CCACHE: "ccache"
+   - KIRBI: "kirbi"
+   - KEYTAB: "keytab"
+   - PFX: "pfx"
+   - PFX string (base64): "pfxstr"
+   - PEM: "pem"
+   - CERTSTORE: "certstore"
    
+   Secret types supporting "b64"/"hex" suffix (e.g. "pwb64", "ccachehex"...):
+   - "pw", "pfx", "pem", "ccache", "keytab", "kirbi"
    
    Example:
    - Plaintext + SOCKS5 proxy:
       kerberos+password://domain\\user:SecretP%40ssword@127.0.0.1/proxytype=socks5&proxyhost=127.0.0.1&proxyport=1080
-   - Plaintext:
-      kerberos+password://domain\\user:SecretPassword@127.0.0.1
-      kerberos+pw://domain\\user:SecretPassword@127.0.0.1
-      kerberos+pass://domain\\user:SecretPassword@127.0.0.1
-   - NT hash:
-      kerberos+nt://domain\\user:921a7fece11f4d8c72432e41e40d0372@127.0.0.1
-   - SSPI:
-      TEST/user/sspi:@192.168.1.1
+   - Encoded Password:
+      kerberos+pwhex://domain\\user:53656372657450617373776F7264@127.0.0.1
+      kerberos+pw64://domain\\user:U2VjcmV0UGFzc3dvcmQ%3D@127.0.0.1
    - RC4 key:
       kerberos+rc4://domain\\user:921a7fece11f4d8c72432e41e40d0372@127.0.0.1
    - AES key:
       kerberos+aes://domain\\user:921a7fece11f4d8c72432e41e40d0372@127.0.0.1
    - CCACHE file:
       kerberos+ccache://domain\\user:creds.ccache@127.0.0.1
+   - KIRBI file:
+      kerberos+kirbi://creds.kirbi@127.0.0.1
    - KEYTAB file:
       kerberos+keytab://domain\\user:creds.keytab@127.0.0.1
    - PFX file:
       kerberos+pfx://TEST.corp\\Administrator:admin@10.10.10.2/?certdata=test.pfx
    - PFX string (b64):
       kerberos+pfxstr://TEST.corp\\Administrator:admin@10.10.10.2/?certdata=BASE64DATA
+   - PEM file:
+      kerberos+pem://TEST.corp\\Administrator:admin@10.10.10.2/?certdata=test.pem&keydata=test.key
+   - CERTSTORE (Windows only):
+	  kerberos+certstore://TEST.corp\\Administrator/?commonname=Administrator&certstore=MY
    - No auth (preauth not req):
       kerberos+none://TEST.corp\\asrepuser@10.10.10.2/
 """
@@ -100,30 +108,45 @@ class KerberosClientFactory:
 	def get_credential(self):
 		return self.get_creds()
 
+	def get_basetype_and_encoding(self):
+		basetype = self.secret_type
+		encoding = 'file'
+		if self.secret_type.name.endswith('B64'):
+			basetype = KerberosSecretType(self.secret_type.name[:-3])
+			encoding = 'b64'
+		elif self.secret_type.name.endswith('HEX'):
+			basetype = KerberosSecretType(self.secret_type.name[:-3])
+			encoding = 'hex'
+		return basetype, encoding
+	
 	def get_creds(self):
 		if self.credential is not None:
 			return copy.deepcopy(self.credential)
-		
-		if self.secret_type == KerberosSecretType.KEYTAB:
-			return KerberosCredential.from_keytab(self.secret, self.username, self.domain)
-		if self.secret_type == KerberosSecretType.KIRBI:
-			return KerberosCredential.from_kirbi(self.secret)
-		if self.secret_type == KerberosSecretType.PFXSTR:
+		basetype, encoding = self.get_basetype_and_encoding()
+		if basetype == KerberosSecretType.KEYTAB:
+			return KerberosCredential.from_keytab(self.secret, self.username, self.domain, encoding=encoding)
+		if basetype == KerberosSecretType.KIRBI:
+			return KerberosCredential.from_kirbi(self.secret, encoding=encoding)
+		if basetype == KerberosSecretType.PFXSTR:
 			return KerberosCredential.from_pfx_string(self.certdata, self.secret, username = self.username, domain = self.domain)
-		if self.secret_type == KerberosSecretType.PFX:
-			return KerberosCredential.from_pfx_file(self.certdata, self.secret, username=self.username, domain=self.domain)
-		if self.secret_type == KerberosSecretType.CCACHE:
-			return KerberosCredential.from_ccache(self.secret, principal=self.username, realm=self.domain)
-		if self.secret_type == KerberosSecretType.PEM:
-			return KerberosCredential.from_pem_file(self.certdata, self.keydata, username = self.username, domain = self.domain)
-		if self.secret_type == KerberosSecretType.CERTSTORE:
+		if basetype == KerberosSecretType.PFX:
+			return KerberosCredential.from_pfx(self.certdata, self.secret, username=self.username, domain=self.domain, encoding=encoding)
+		if basetype == KerberosSecretType.CCACHE:
+			return KerberosCredential.from_ccache(self.secret, principal=self.username, realm=self.domain, encoding=encoding)
+		if basetype == KerberosSecretType.PEM:
+			return KerberosCredential.from_pem(self.certdata, self.keydata, username = self.username, domain = self.domain, encoding=encoding)
+		if basetype == KerberosSecretType.CERTSTORE:
 			return KerberosCredential.from_windows_certstore(self.commonname, certstore_name = self.certstore, dhparams = None, username = self.username, domain = self.domain)
 
 		res = KerberosCredential()
 		res.username = self.username
 		res.domain = self.domain
 
-		if self.secret_type in [KerberosSecretType.PASSWORD, KerberosSecretType.PW, KerberosSecretType.PASS]:
+		if basetype in [KerberosSecretType.PASSWORD, KerberosSecretType.PW, KerberosSecretType.PASS]:
+			if encoding == 'b64':
+				self.secret = base64.b64decode(self.secret).decode()
+			elif encoding == 'hex':
+				self.secret = bytes.fromhex(self.secret).decode()
 			res.password = self.secret
 		elif self.secret_type in [KerberosSecretType.NT, KerberosSecretType.RC4]:
 			if len(self.secret) != 32:

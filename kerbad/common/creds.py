@@ -277,6 +277,15 @@ class KerberosCredential:
 		return KerberosCredential.from_pfx_string(data, password, dhparams = dhparams, username = username, domain = domain)
 	
 	@staticmethod
+	def from_pem(certdata: str or bytes, keydata:str or bytes, dhparams:DirtyDH = None, username:str = None, domain:str = None, encoding = 'file') -> KerberosCredential:
+		"""
+		Retruns a credential object from data found in the PEM file
+		Username and domain will override the values found in the certificate
+		"""
+		certdata = get_encoded_data(certdata, encoding=encoding)
+		return KerberosCredential.from_pem_data(certdata, keydata, dhparams = dhparams, username = username, domain = domain)
+	
+	@staticmethod
 	def from_krbcred(keytab_file_path: str, principal: str = None, realm: str = None) -> KerberosCredential:
 		return KerberosCredential.from_kirbi(keytab_file_path, principal, realm)
 	
