@@ -50,7 +50,7 @@ setup(
 	install_requires=[
 		'asn1crypto>=1.5.1',
 		'cryptography>=44.0.2',
-		'asysocks>=0.2.8',
+		'asysocks>=0.2.17',
 		'unicrypto>=0.0.10',
 		'tqdm',
         'six',
