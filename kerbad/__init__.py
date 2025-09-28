@@ -1,7 +1,6 @@
 import logging
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 def getLogger():
     logger.propagate = False
@@ -19,4 +18,6 @@ def getLogger():
             return f"{symbol} {record.getMessage()}"
     handler.setFormatter(SymbolFormatter())
     logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+
     return logger

@@ -42,8 +42,8 @@ kerberos_url_help_epilog = """==== Extra Help ====
       kerberos+rc4://domain\\user:921a7fece11f4d8c72432e41e40d0372@127.0.0.1
    - AES key:
       kerberos+aes://domain\\user:921a7fece11f4d8c72432e41e40d0372@127.0.0.1
-   - CCACHE file:
-      kerberos+ccache://domain\\user:creds.ccache@127.0.0.1
+   - CCACHE file + Timeout + DNS:
+      kerberos+ccache://domain\\user:creds.ccache@127.0.0.1/?timeout=60&dns=192.168.100.1
    - KIRBI file:
       kerberos+kirbi://creds.kirbi@127.0.0.1
    - KEYTAB file:
@@ -55,7 +55,7 @@ kerberos_url_help_epilog = """==== Extra Help ====
    - PEM file:
       kerberos+pem://TEST.corp\\Administrator:admin@10.10.10.2/?certdata=test.pem&keydata=test.key
    - CERTSTORE (Windows only):
-	  kerberos+certstore://TEST.corp\\Administrator/?commonname=Administrator&certstore=MY
+	  kerberos+certstore://TEST.corp\\Administrator/?cn=Administrator&certstore=MY
    - No auth (preauth not req):
       kerberos+none://TEST.corp\\asrepuser@10.10.10.2/
 """
@@ -68,6 +68,7 @@ KerberosClientFactory_param2var = {
 	'etype': ('etype', [int]),
 	'certstore': ('certstore', [str]),
 	'cn': ('commonname', [str]),
+	'dns': ('dns', [str]),
 }
 
 class KerberosClientFactory:
@@ -85,6 +86,7 @@ class KerberosClientFactory:
 		self.timeout = 10
 		self.port = 88
 
+		self.dns = None
 		self.target = target #proxy needs to be already in the target!
 		self.credential = credential
 		self.proxies = proxies
@@ -95,13 +97,16 @@ class KerberosClientFactory:
 		if self.target is not None:
 			if self.target.proxies is None and self.proxies is not None:
 				self.target.proxies = self.proxies
+			if self.target.dns is None and self.dns is not None:
+				self.target.dns = self.dns
 			return copy.deepcopy(self.target)
 		res = KerberosTarget(
 			self.dc_ip, 
 			port=self.port, 
 			protocol = UniProto.CLIENT_TCP, 
 			proxies = self.proxies,
-			timeout = self.timeout
+			timeout = self.timeout,
+			dns = self.dns
 		)
 		return res
 	
@@ -260,6 +265,10 @@ class KerberosClientFactory:
 		
 		if proxy_type is not None:
 			res.proxies = UniProxyTarget.from_url_params(url_str, res.port)
+		
+		# Usually DC is also a DNS server
+		if not res.dns:
+			res.dns = res.dc_ip
 		
 		if res.username is None:
 			if res.secret_type != KerberosSecretType.CERTSTORE:

@@ -54,6 +54,7 @@ setup(
 		'unicrypto>=0.0.10',
 		'tqdm',
         'six',
+        'dnspython>=2.7.0'
 	],
 
 	entry_points={
