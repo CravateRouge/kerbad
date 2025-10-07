@@ -53,7 +53,10 @@ def main():
 	
 	elif args.command == 'del':
 		#delete
-		output_filename = os.path.join(os.path.dirname(os.path.abspath(args.ccachefile)), '%s.edited.ccache' % ntpath.basename(args.ccachefile)) #sorry for this, im tired now :(
+		if args.outfile:
+			output_filename = args.outfile
+		else:
+			output_filename = os.path.splitext(args.ccachefile)[0] + '.edited.ccache'
 		id = args.id
 		temp_cc = CCACHE()
 		temp_cc.file_format_version = cc.file_format_version

@@ -16,16 +16,21 @@ class KerberosSPN:
 		return KerberosSPN.from_upn(s)
 
 	@staticmethod
-	def from_upn(s):
+	def from_upn(s, default_realm:str = None):
 		"""Converts UserPrincipalName to SPN"""
 		kt = KerberosSPN()
 		if s.find('@') == -1:
-			raise Exception('Incorrect format, @ sign is missing!')
-		kt.username, kt.domain = s.split('@')
+			if not default_realm:
+				raise Exception('Incorrect format, @ sign is missing!')
+			
+			kt.domain = default_realm
+			kt.username = s
+		else:
+			kt.username, kt.domain = s.split('@')
 		return kt
 
 	@staticmethod
-	def from_spn(s, override_realm:str = None):
+	def from_spn(s, override_realm:str = None, default_realm:str = None):
 		"""
 		Converts ServicePrincipalName to SPN
 		service/host@domain
@@ -35,17 +40,17 @@ class KerberosSPN:
 		kt = KerberosSPN()
 		
 		if s.find('/') != -1:
-			t, kt.domain = s.rsplit('@',1)
-			kt.service, kt.username = t.split('/')
+			kt.service, s = s.split('/')
+		if s.find('@') != -1:
+			kt.username, kt.domain = s.rsplit('@', 1)
 		else:
-			if s.find('@') != -1:
-				kt.username, kt.domain = s.rsplit('@', 1)
-			else:
-				kt.username = s
-				if override_realm is None or override_realm == '':
-					raise Exception('The following SPN is incorrect without additionally setting the realm: %s' % s)
+			kt.username = s
+			if not override_realm and not default_realm:
+				raise Exception('The following SPN is incorrect without additionally setting the realm: %s' % s)
 		if override_realm is not None:
 			kt.domain = override_realm
+		elif not kt.domain:
+			kt.domain = default_realm
 		if kt.domain.find(':') != -1:
 			kt.domain, kt.port = kt.domain.split(':', 1)
 		return kt
