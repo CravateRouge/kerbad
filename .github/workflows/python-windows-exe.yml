@@ -5,10 +5,10 @@ name: Build Windows Executable - PyInstaller
 # then upload the resulting executables to a google cloud bucket.
 # Additionally the executables will be compressed and encrypted using 7z
 
-on:
-  push:
-    branches:
-      - main # Trigger on push to master branch
+# on:
+#   push:
+#     branches:
+#       - main # Trigger on push to master branch
 
 jobs:
   build:
