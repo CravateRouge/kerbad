@@ -264,7 +264,7 @@ class KerberosClientFactory:
 					)
 		
 		if proxy_type is not None:
-			res.proxies = UniProxyTarget.from_url_params(url_str, res.port)
+			res.proxies = UniProxyTarget.from_url_params(query, res.dc_ip, res.port)
 		
 		# Usually DC is also a DNS server
 		if not res.dns:

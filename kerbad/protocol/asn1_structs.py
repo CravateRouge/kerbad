@@ -183,6 +183,7 @@ class KerberosString(core.GeneralString):
 	values that contain characters other than those permitted by
 	IA5String...
 	"""
+	_encoding = 'utf-8'
 	
 class SequenceOfKerberosString(core.SequenceOf):
 	_child_spec = KerberosString
@@ -355,6 +356,15 @@ class EncryptionKey(core.Sequence):
 		('keyvalue', core.OctetString, {'tag_type': TAG, 'tag': 1}), #
 	]
 
+class EncryptionKeys(core.SequenceOf):
+	_child_spec = EncryptionKey
+
+class KERB_KEY_LIST_REP(EncryptionKeys):
+	pass
+
+class KERB_KEY_LIST_REQ(core.SequenceOf):
+	_child_spec = krb5uint32 #core.Integer
+
 class SequenceOfEncryptionKey(core.SequenceOf):
 	_child_spec = EncryptionKey
 
@@ -365,7 +375,6 @@ class TransitedEncoding(core.Sequence):
 		('tr-type', krb5uint32, {'tag_type': TAG, 'tag': 0}), #-- must be registered
 		('contents', core.OctetString, {'tag_type': TAG, 'tag': 1}), #
 	]
-
 
 
 # https://github.com/tiran/kkdcpasn1/blob/asn1crypto/pykkdcpasn1.py

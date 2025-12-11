@@ -50,8 +50,8 @@ setup(
 	install_requires=[
 		'asn1crypto>=1.5.1',
 		'cryptography>=44.0.2',
-		'asysocks>=0.2.17',
-		'unicrypto>=0.0.10',
+		'asysocks>=0.2.18',
+		'unicrypto>=0.0.12',
 		'tqdm',
         'six',
         'dnspython>=2.7.0'
@@ -74,6 +74,7 @@ setup(
 			'badkerberoast   = kerbad.examples.spnroast:main',
             'badasreproast   = kerbad.examples.asreproast:main',
             'badchangepw   = kerbad.examples.changepassword:main',
+            'badkeylist = kerbad.examples.keylist:main',
 		],
 	}
 )

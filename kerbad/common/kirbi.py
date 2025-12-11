@@ -1,5 +1,6 @@
 import base64
-from kerbad.protocol.asn1_structs import KRBCRED, EncKrbCredPart, KrbCredInfo, EncryptedData
+from minikerberos.protocol.asn1_structs import KRBCRED, EncKrbCredPart,\
+    KrbCredInfo, EncryptedData, KERB_DMSA_KEY_PACKAGE, KERB_KEY_LIST_REP
 
 class Kirbi:
     def __init__(self, kirbiobj:KRBCRED = None):
@@ -122,6 +123,19 @@ class Kirbi:
             if username is not None:
                 return '/'.join(username['name-string'])
         return None
+    
+    def dmsa_get_previous_keys(self):
+        if self.encpart is None:
+            return []
+        if 'encrypted-pa-data' not in self.encpart or self.encpart['encrypted-pa-data'] is None:
+            return []
+        prevkeys = []
+        for encpadata in self.encpart['encrypted-pa-data']:
+            if encpadata['padata-type'] == 171:
+                keypackage = KERB_DMSA_KEY_PACKAGE.load(encpadata['padata-value'])
+                for previous_key in keypackage['previous-keys']:
+                    prevkeys.append((previous_key['keytype'].native, previous_key['keyvalue'].native.hex()))
+        return prevkeys
     
     def __str__(self):
         return self.describe()

