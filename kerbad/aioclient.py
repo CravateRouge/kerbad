@@ -91,7 +91,6 @@ class AIOKerberosClient:
 				timestamp = PA_ENC_TS_ENC({'patimestamp': now.replace(microsecond=0), 'pausec': now.microsecond}).dump()
 				self.kerberos_cipher = _enctype_table[supported_encryption_method.value]
 				self.kerberos_cipher_type = supported_encryption_method.value
-				self.server_salt = self.server_supp_enc_methods[supported_encryption_method].encode() if self.server_supp_enc_methods[supported_encryption_method] is not None else None
 				self.kerberos_key = Key(self.kerberos_cipher.enctype, self.credential.get_key_for_enctype(supported_encryption_method, salt = self.server_salt))
 				enc_timestamp = self.kerberos_cipher.encrypt(self.kerberos_key, 1, timestamp, None)
 			else:
