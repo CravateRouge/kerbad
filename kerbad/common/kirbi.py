@@ -1,5 +1,5 @@
 import base64
-from minikerberos.protocol.asn1_structs import KRBCRED, EncKrbCredPart,\
+from kerbad.protocol.asn1_structs import KRBCRED, EncKrbCredPart,\
     KrbCredInfo, EncryptedData, KERB_DMSA_KEY_PACKAGE, KERB_KEY_LIST_REP
 
 class Kirbi:

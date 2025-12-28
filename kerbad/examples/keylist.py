@@ -1,8 +1,8 @@
 import logging
 import asyncio
-from minikerberos.common.factory import KerberosClientFactory, kerberos_url_help_epilog
-from minikerberos.common.kirbi import Kirbi
-from minikerberos.protocol.asn1_structs import KERB_KEY_LIST_REP
+from kerbad.common.factory import KerberosClientFactory, kerberos_url_help_epilog
+from kerbad.common.kirbi import Kirbi
+from kerbad.protocol.asn1_structs import KERB_KEY_LIST_REP
 
 
 KEYLIST_EPILOG = """
