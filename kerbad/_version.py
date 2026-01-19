@@ -1,5 +1,5 @@
 
-__version__ = "0.5.8"
+__version__ = "0.5.9"
 __banner__ = \
 """
 # kerbad %s 

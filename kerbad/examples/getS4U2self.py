@@ -23,9 +23,9 @@ async def getS4U2self(kerberos_url, spn, targetuser, kirbifile = None, ccachefil
 	
 	if not cu.secret_type.name.startswith(KerberosSecretType.CCACHE.name):
 		LOG.debug('Getting TGT')
-		await client.get_TGT()
+		await client.with_clock_skew(client.get_TGT)
 		LOG.debug('Getting S4Uself')
-		tgs, encTGSRepPart, key = await client.S4U2self(target_user, service_spn, is_dmsa=is_dmsa)
+		tgs, encTGSRepPart, key = await client.with_clock_skew(client.S4U2self, target_user, service_spn, is_dmsa=is_dmsa)
 	else:
 		LOG.debug('Getting TGS via TGT from CCACHE')
 		for kirbi in client.credential.ccache.get_all_tgt_kirbis():
@@ -33,7 +33,7 @@ async def getS4U2self(kerberos_url, spn, targetuser, kirbifile = None, ccachefil
 				LOG.info('Trying to get SPN with %s' % kirbi.get_username())
 				ccred_test = KerberosCredential.from_kirbi(kirbi.to_hex(), encoding='hex')
 				client = cu.get_client_newcred(ccred_test)
-				tgs, encTGSRepPart, key = await client.S4U2self(target_user, service_spn, is_dmsa=is_dmsa)
+				tgs, encTGSRepPart, key = await client.with_clock_skew(client.S4U2self, target_user, service_spn, is_dmsa=is_dmsa)
 				LOG.info('Success!')
 				break
 			except Exception as e:
