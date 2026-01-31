@@ -63,7 +63,7 @@ def main():
 	if args.verbose > 0:
 		LOG.setLevel(logging.DEBUG)
 
-	asyncio.run(getS4U2proxy(args.kerberos_url, args.spn, args.targetuser, args.kirbi, args.ccache))
+	asyncio.run(getS4U2proxy(args.kerberos_url, args.spn, args.impersonate, args.kirbi, args.ccache))
 	
 	
 if __name__ == '__main__':
