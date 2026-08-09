@@ -13,7 +13,7 @@ from kerbad.common.ccache import CCACHE
 from kerbad.common.spn import KerberosSPN
 from kerbad.protocol.asn1_structs import METHOD_DATA, ETYPE_INFO, ETYPE_INFO2, \
 	PADATA_TYPE, PA_PAC_REQUEST, PA_ENC_TS_ENC, EncryptedData, krb5_pvno, KDC_REQ_BODY, \
-	AS_REQ, TGS_REP, KDCOptions, PrincipalName, EncASRepPart, EncTGSRepPart, PrincipalName, Realm, \
+	AS_REQ, TGS_REP, KDCOptions, PrincipalName, EncASRepPart, EncTGSRepPart, Realm, \
 	Checksum, APOptions, Authenticator, Ticket, AP_REQ, TGS_REQ, CKSUMTYPE, \
 	PA_FOR_USER_ENC, PA_PAC_OPTIONS, PA_PAC_OPTIONSTypes, EncTicketPart, \
 	ChangePasswdDataMS, EncryptionKey, EncKrbPrivPart, HostAddress, KRB_PRIV,\
@@ -104,9 +104,11 @@ class AIOKerberosClient:
 
 		kdc_req_body = {}
 		kdc_req_body['kdc-options'] = KDCOptions(set(kdcopts))
-		kdc_req_body['cname'] = PrincipalName({'name-type': NAME_TYPE.PRINCIPAL.value, 'name-string': self.credential.username.split('/')})
+
+		ptype = self.credential.ptype if self.credential.ptype else NAME_TYPE.PRINCIPAL.value
+		kdc_req_body['cname'] = PrincipalName({'name-type': ptype, 'name-string': self.credential.username.split('/')})
 		kdc_req_body['realm'] = self.credential.domain.upper()
-		kdc_req_body['sname'] = PrincipalName({'name-type': NAME_TYPE.PRINCIPAL.value, 'name-string': ['krbtgt', self.credential.domain.upper()]})
+		kdc_req_body['sname'] = PrincipalName({'name-type': NAME_TYPE.SRV_INST.value, 'name-string': ['krbtgt', self.credential.domain.upper()]})
 		kdc_req_body['till'] = (now + datetime.timedelta(days=1)).replace(microsecond=0)
 		kdc_req_body['rtime'] = (now + datetime.timedelta(days=1)).replace(microsecond=0)
 		kdc_req_body['nonce'] = secrets.randbits(31)
@@ -124,7 +126,7 @@ class AIOKerberosClient:
 		
 		return AS_REQ(kdc_req)
 	
-	def build_asreq_pkinit(self, supported_encryption_method, kdcopts = ['forwardable','renewable','renewable-ok'], with_pac:bool = True) -> AS_REQ:
+	def build_asreq_pkinit(self, supported_encryption_method, kdcopts = ['forwardable','renewable','renewable-ok'], with_pac:bool = True, kdc_req_body_extra = None) -> AS_REQ:
 		from asn1crypto import keys
 
 		if supported_encryption_method.value == 23:
@@ -135,13 +137,19 @@ class AIOKerberosClient:
 
 		kdc_req_body_data = {}
 		kdc_req_body_data['kdc-options'] = KDCOptions(set(kdcopts))
-		kdc_req_body_data['cname'] = PrincipalName({'name-type': NAME_TYPE.PRINCIPAL.value, 'name-string': self.credential.username.split('/')})
+		ptype = self.credential.ptype if self.credential.ptype else NAME_TYPE.PRINCIPAL.value
+		kdc_req_body_data['cname'] = PrincipalName({'name-type': ptype, 'name-string': self.credential.username.split('/')})
 		kdc_req_body_data['realm'] = self.credential.domain.upper()
 		kdc_req_body_data['sname'] = PrincipalName({'name-type': NAME_TYPE.SRV_INST.value, 'name-string': ['krbtgt', self.credential.domain.upper()]})
 		kdc_req_body_data['till']  = (now + datetime.timedelta(days=1)).replace(microsecond=0)
 		kdc_req_body_data['rtime'] = (now + datetime.timedelta(days=1)).replace(microsecond=0)
 		kdc_req_body_data['nonce'] = secrets.randbits(31)
 		kdc_req_body_data['etype'] = self.credential.get_supported_enctypes() #gives all client supported etypes in case server does not support the selected one
+
+		if kdc_req_body_extra is not None:
+			for key in kdc_req_body_extra:
+				kdc_req_body_data[key] = kdc_req_body_extra[key]
+
 		kdc_req_body = KDC_REQ_BODY(kdc_req_body_data)
 
 
@@ -200,11 +208,11 @@ class AIOKerberosClient:
 		return AS_REQ(asreq)
 
 
-	async def do_preauth(self, supported_encryption_method, kdcopts = ['forwardable','renewable','renewable-ok'], with_pac:bool = True):
+	async def do_preauth(self, supported_encryption_method, kdcopts = ['forwardable','renewable','renewable-ok'], with_pac:bool = True, kdc_req_body_extra = None):
 		if self.credential.certificate is not None:
-			req = self.build_asreq_pkinit(supported_encryption_method, kdcopts, with_pac=with_pac)
+			req = self.build_asreq_pkinit(supported_encryption_method, kdcopts, with_pac=with_pac, kdc_req_body_extra=kdc_req_body_extra)
 		else:
-			req = self.build_asreq_lts(supported_encryption_method, kdcopts, with_pac=with_pac)
+			req = self.build_asreq_lts(supported_encryption_method, kdcopts, with_pac=with_pac, kdc_req_body_extra=kdc_req_body_extra)
 	
 		logger.debug('Sending TGT request to server')
 		rep = await self.ksoc.sendrecv(req.dump())
@@ -259,7 +267,7 @@ class AIOKerberosClient:
 		return preferred_enc_type, common_enctypes
 
 
-	async def get_TGT(self, override_etype = None, decrypt_tgt = True, kdcopts = ['forwardable','renewable','proxiable'], override_sname:KerberosSPN = None, with_pac:bool = True):
+	async def get_TGT(self, override_etype = None, decrypt_tgt = True, kdcopts = ['forwardable','renewable','proxiable'], override_sname:KerberosSPN = None, with_pac:bool = True, kdc_req_body_extra = None):
 		"""
 		decrypt_tgt: used for asreproast attacks
 		Steps performed:
@@ -285,7 +293,8 @@ class AIOKerberosClient:
 			now = self._now()
 			kdc_req_body = {}
 			kdc_req_body['kdc-options'] = KDCOptions(set(kdcopts))
-			kdc_req_body['cname'] = PrincipalName({'name-type': NAME_TYPE.PRINCIPAL.value, 'name-string': self.credential.username.split('/')})
+			ptype = self.credential.ptype if self.credential.ptype else NAME_TYPE.PRINCIPAL.value
+			kdc_req_body['cname'] = PrincipalName({'name-type': ptype, 'name-string': self.credential.username.split('/')})
 			kdc_req_body['realm'] = self.credential.domain.upper()
 			if override_sname is None:
 				kdc_req_body['sname'] = PrincipalName({'name-type': NAME_TYPE.PRINCIPAL.value, 'name-string': ['krbtgt', self.credential.domain.upper()]})
@@ -296,6 +305,10 @@ class AIOKerberosClient:
 			kdc_req_body['rtime'] = (now + datetime.timedelta(days=1)).replace(microsecond=0)
 			kdc_req_body['nonce'] = secrets.randbits(31)
 			kdc_req_body['etype'] = supported_etypes
+
+			if kdc_req_body_extra is not None:
+				for key in kdc_req_body_extra:
+					kdc_req_body[key] = kdc_req_body_extra[key]
 
 			pa_data_1 = {}
 			if with_pac is True:
@@ -328,7 +341,7 @@ class AIOKerberosClient:
 		for etype_int in supported_etypes:
 			etype = EncryptionType(etype_int)
 			try:
-				preauth_rep = await self.do_preauth(etype, with_pac=with_pac)
+				preauth_rep = await self.do_preauth(etype, with_pac=with_pac, kdc_req_body_extra=kdc_req_body_extra)
 				break
 			except KerberosError as e:
 				if e.errorcode != KerberosErrorCode.KDC_ERR_ETYPE_NOTSUPP:
@@ -338,7 +351,7 @@ class AIOKerberosClient:
 				if e.krb_err_msg.get('e-data'):
 					srv_etype,default_supported_etypes = self.select_preferred_encryption_method(e.krb_err_msg)
 					logger.debug('Trying with supported suggested etype %s' % srv_etype.name)
-					preauth_rep = await self.do_preauth(srv_etype, with_pac=with_pac)
+					preauth_rep = await self.do_preauth(srv_etype, with_pac=with_pac, kdc_req_body_extra=kdc_req_body_extra)
 					break
 				if etype_int == supported_etypes[-1]:
 					raise e
@@ -931,9 +944,9 @@ class AIOKerberosClient:
 				targetuser, targetrealm = targetuser.split('@')
 			changepwstruct['targname'] = PrincipalName({'name-type': NAME_TYPE.PRINCIPAL.value, 'name-string': [targetuser]})
 			changepwstruct['targrealm'] = targetrealm if targetrealm is not None else self.credential.domain.upper()
-		else:
-			changepwstruct['targname'] = PrincipalName({'name-type': NAME_TYPE.PRINCIPAL.value, 'name-string': [self.credential.username]})
-			changepwstruct['targrealm'] = self.credential.domain.upper()
+		#else:
+		#	changepwstruct['targname'] = PrincipalName({'name-type': NAME_TYPE.PRINCIPAL.value, 'name-string': [self.credential.username]})
+		#	changepwstruct['targrealm'] = self.credential.domain.upper()
 
 		privstruct = {}
 		privstruct['user-data'] = ChangePasswdDataMS(changepwstruct).dump()

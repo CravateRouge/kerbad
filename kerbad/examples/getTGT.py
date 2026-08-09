@@ -6,14 +6,19 @@ LOG = kerbad.getLogger()
 import asyncio
 from kerbad.common.factory import KerberosClientFactory, kerberos_url_help_epilog
 from kerbad.common.kirbi import Kirbi
+from kerbad.protocol.asn1_structs import PrincipalName
+from kerbad.protocol.constants import NAME_TYPE
 
 
-async def getTGT(kerberos_url:str, kirbifile:str = None, ccachefile:str = None, nopac:bool = False):
+async def getTGT(kerberos_url:str, kirbifile:str = None, ccachefile:str = None, nopac:bool = False, sname:str = None):
 	cu = KerberosClientFactory.from_url(kerberos_url)
 	client = cu.get_client()
 	LOG.debug('Getting TGT')
-	
-	await client.with_clock_skew(client.get_TGT, with_pac=nopac)
+
+	kdc_req_body_override = {
+		'sname': PrincipalName({'name-type': NAME_TYPE.SRV_INST.value, 'name-string': sname.split('/')}),
+	}
+	await client.with_clock_skew(client.get_TGT, with_pac=nopac, kdc_req_body_extra=kdc_req_body_override)
 	if ccachefile is not None:
 		client.ccache.to_file(ccachefile)
 		print('TGT stored in ccache file %s' % ccachefile)
@@ -32,6 +37,7 @@ def main():
 	parser.add_argument('--nopac', action='store_false', help="Don't request a PAC in the TGT")
 	parser.add_argument('--ccache', help='CCACHE file to store the TGT ticket in, otherwise kirbi will be printed to stdout')
 	parser.add_argument('--kirbi', help='kirbi file to store the TGT ticket in, otherwise kirbi will be printed to stdout')
+	parser.add_argument('--sname', help='Server principal name, default is krbtgt/<REALM>. E.g. "--sname kadmin/changepw" for a password change TGT')
 	parser.add_argument('kerberos_url', help='the kerberos target string. ')
 	parser.add_argument('-v', '--verbose', action='count', default=0)
 	
@@ -39,7 +45,7 @@ def main():
 	if args.verbose > 0:
 		LOG.setLevel(logging.DEBUG)
 	
-	asyncio.run(getTGT(args.kerberos_url, args.kirbi, args.ccache, args.nopac))
+	asyncio.run(getTGT(args.kerberos_url, args.kirbi, args.ccache, args.nopac, args.sname))
 	
 	
 if __name__ == '__main__':

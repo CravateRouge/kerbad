@@ -34,14 +34,14 @@ kerberos_url_help_epilog = """==== Extra Help ====
    
    Example:
    - Plaintext + SOCKS5 proxy:
-      kerberos+password://domain\\user:SecretP%40ssword@127.0.0.1/proxytype=socks5&proxyhost=127.0.0.1&proxyport=1080
+      kerberos+password://domain\\user:SecretP%40ssword@127.0.0.1/?proxytype=socks5&proxyhost=127.0.0.1&proxyport=1080
    - Encoded Password:
       kerberos+pwhex://domain\\user:53656372657450617373776F7264@127.0.0.1
       kerberos+pw64://domain\\user:U2VjcmV0UGFzc3dvcmQ%3D@127.0.0.1
    - RC4 key:
       kerberos+rc4://domain\\user:921a7fece11f4d8c72432e41e40d0372@127.0.0.1
-   - AES key:
-      kerberos+aes://domain\\user:921a7fece11f4d8c72432e41e40d0372@127.0.0.1
+   - AES key + AES Encryption Type + UPN Principal Type:
+      kerberos+aes://domain\\user:921a7fece11f4d8c72432e41e40d0372@127.0.0.1/?etype=18&ptype=10
    - CCACHE file + Timeout + DNS:
       kerberos+ccache://domain\\user:creds.ccache@127.0.0.1/?timeout=60&dns=192.168.100.1
    - KIRBI file:
@@ -57,7 +57,7 @@ kerberos_url_help_epilog = """==== Extra Help ====
    - CERTSTORE (Windows only):
 	  kerberos+certstore://TEST.corp\\Administrator/?cn=Administrator&certstore=MY
    - No auth (preauth not req):
-      kerberos+none://TEST.corp\\asrepuser@10.10.10.2/
+      kerberos+none://TEST.corp\\asrepuser@10.10.10.2
 """
 
 
@@ -69,6 +69,7 @@ KerberosClientFactory_param2var = {
 	'certstore': ('certstore', [str]),
 	'cn': ('commonname', [str]),
 	'dns': ('dns', [str]),
+	'ptype': ('ptype', [int])
 }
 
 class KerberosClientFactory:
@@ -78,6 +79,7 @@ class KerberosClientFactory:
 		self.secret_type = None
 		self.secret = None
 		self.etype = None
+		self.ptype = None
 		self.certstore = 'MY'
 		self.commonname = None
 
@@ -189,6 +191,7 @@ class KerberosClientFactory:
 
 		if self.etype is not None:
 			res.override_etypes = [EncryptionType(self.etype)]
+		res.ptype = self.ptype
 
 		return res
 	

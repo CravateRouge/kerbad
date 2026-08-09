@@ -68,6 +68,7 @@ class KerberosCredential:
 		self.ccache_spn_strict_check:bool = False
 		self.nopreauth = False
 		self.override_etypes:List[EncryptionType] = []
+		self.ptype:int = None
 
 	def get_common_enctypes(self, server_enctypes:List[EncryptionType]) -> List[EncryptionType]:
 		client_enctypes = self.get_supported_enctypes(as_int=False)

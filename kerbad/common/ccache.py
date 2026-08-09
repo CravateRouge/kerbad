@@ -634,7 +634,8 @@ class CCACHE:
 		"""
 		tgts = []
 		for cred in self.credentials:
-			if cred.server.to_string(separator = '/').lower().find('krbtgt') != -1:
+			# Could be another server principal like kadmin/changepw for password change	
+			#if cred.server.to_string(separator = '/').lower().find('krbtgt') != -1:
 				tgts.append(cred.to_tgt())
 
 		return tgts
