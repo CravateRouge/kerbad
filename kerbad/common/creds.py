@@ -82,12 +82,14 @@ class KerberosCredential:
 		return common_enctypes
 
 	def get_preferred_enctype(self, server_enctypes:List[EncryptionType]) -> EncryptionType:
-		client_enctypes = self.get_supported_enctypes(as_int=False)
 		common_enctypes = self.get_common_enctypes(server_enctypes)
 
-		for c_enctype in client_enctypes:
-			if c_enctype in common_enctypes:
-				return c_enctype
+		# server_enctypes is ordered by the server itself (ETYPE-INFO2 lists the enctypes
+		# the KDC accepts, strongest first), so its order beats the local one: the local
+		# order can start with an enctype the KDC just refused (e.g. RC4 first)
+		for s_enctype in server_enctypes:
+			if s_enctype in common_enctypes:
+				return s_enctype
 
 	def get_key_for_enctype(self, etype:EncryptionType, salt:bytes = None) -> bytes:
 		"""
