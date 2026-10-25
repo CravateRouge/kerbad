@@ -15,9 +15,11 @@ async def getTGT(kerberos_url:str, kirbifile:str = None, ccachefile:str = None, 
 	client = cu.get_client()
 	LOG.debug('Getting TGT')
 
-	kdc_req_body_override = {
-		'sname': PrincipalName({'name-type': NAME_TYPE.SRV_INST.value, 'name-string': sname.split('/')}),
-	}
+	kdc_req_body_override = None
+	if sname:
+		kdc_req_body_override = {
+			'sname': PrincipalName({'name-type': NAME_TYPE.SRV_INST.value, 'name-string': sname.split('/')}),
+		}
 	await client.with_clock_skew(client.get_TGT, with_pac=nopac, kdc_req_body_extra=kdc_req_body_override)
 	if ccachefile is not None:
 		client.ccache.to_file(ccachefile)
