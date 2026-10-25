@@ -347,12 +347,12 @@ class AIOKerberosClient:
 				if e.errorcode != KerberosErrorCode.KDC_ERR_ETYPE_NOTSUPP:
 					raise e	
 				logger.debug('Failed to get TGT with etype %s' % etype.name)
-				# If the server suggested encryption methods, we will use them
-				if e.krb_err_msg.get('e-data'):
-					srv_etype,default_supported_etypes = self.select_preferred_encryption_method(e.krb_err_msg)
-					logger.debug('Trying with supported suggested etype %s' % srv_etype.name)
-					preauth_rep = await self.do_preauth(srv_etype, with_pac=with_pac, kdc_req_body_extra=kdc_req_body_extra)
-					break
+				# # If the server suggested encryption methods, we will use them
+				# if e.krb_err_msg.get('e-data'):
+				# 	srv_etype,default_supported_etypes = self.select_preferred_encryption_method(e.krb_err_msg)
+				# 	logger.debug('Trying with supported suggested etype %s' % srv_etype.name)
+				# 	preauth_rep = await self.do_preauth(srv_etype, with_pac=with_pac, kdc_req_body_extra=kdc_req_body_extra)
+				# 	break
 				if etype_int == supported_etypes[-1]:
 					raise e
 		
